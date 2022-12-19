@@ -5,9 +5,9 @@ ServerLoop::ServerLoop(int port)
 {
 }
 
-void ServerLoop::addHandler(RequestHandler handler)
+void ServerLoop::setHandler(std::string uri, RequestHandler handler)
 {
-  handlers_.push_back(std::move(handler));
+  uri2handler_[std::move(uri)] = handler;
 }
 
 void ServerLoop::exec()
@@ -36,9 +36,9 @@ void ServerLoop::exec()
 
 std::optional<Http::Response> ServerLoop::handleRequest(const Http::Request &req)
 {
-  for(auto &handler : handlers_)
-    if(auto res = handler(req))
-      return {std::move(res)};
+  if(auto it = uri2handler_.lower_bound(req.uri()); it != uri2handler_.begin())
+    if(const auto &[uri, handler] = *--it; req.uri().starts_with(uri))
+      return {handler(req)};
 
-   return {};
+  return {};
 }

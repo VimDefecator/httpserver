@@ -8,11 +8,11 @@
 class ServerLoop
 {
 public:
-  using RequestHandler = std::function<std::optional<Http::Response>(const Http::Request &)>;
+  using RequestHandler = std::function<Http::Response(const Http::Request &)>;
 
   ServerLoop(int port);
 
-  void addHandler(RequestHandler handler);
+  void setHandler(std::string uri, RequestHandler handler);
   void exec();
 
 private:
@@ -20,7 +20,7 @@ private:
 
 private:
   TcpListener listener_;
-  std::vector<RequestHandler> handlers_;
+  std::map<std::string, RequestHandler, std::less<>> uri2handler_;
 };
 
 #endif

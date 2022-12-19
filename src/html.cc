@@ -84,6 +84,21 @@ Html &Html::operator=(Html &&other)
   return *this;
 }
 
+Html::Html(const Html &other)
+{
+  *this = other;
+}
+
+Html &Html::operator=(const Html &other)
+{
+  if(!impl_)
+    impl_ = std::make_unique<Impl>();
+
+  *impl_ = *other.impl_;
+
+  return *this;
+}
+
 Html &Html::setText(std::string text)
 {
   if(!impl_)
@@ -115,6 +130,18 @@ Html &Html::addAttr(std::string name, std::string value)
 Html &Html::addChild(Html &&child)
 {
   impl_->children_.push_back(std::move(child));
+  return *this;
+}
+
+Html &Html::addChild(const Html &child)
+{
+  impl_->children_.push_back(child);
+  return *this;
+}
+
+Html &Html::applyFn(std::function<void(Html&)> fn)
+{
+  fn(*this);
   return *this;
 }
 

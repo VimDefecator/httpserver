@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <functional>
 #include "classutils.hh"
 
 class Html : public EnableMoveGetter<Html>
@@ -18,10 +19,16 @@ public:
   Html(Html &&);
   Html &operator=(Html &&);
 
+  Html(const Html &);
+  Html &operator=(const Html &);
+
   Html &setText(std::string text);
   Html &setName(std::string name);
   Html &addAttr(std::string name, std::string value);
   Html &addChild(Html &&child);
+  Html &addChild(const Html &child);
+
+  Html &applyFn(std::function<void(Html&)> fn);
 
   operator bool();
 

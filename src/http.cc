@@ -1,7 +1,6 @@
 #include "http.hh"
 #include "utils.hh"
 #include <algorithm>
-#include <charconv>
 #include <cctype>
 #include <unistd.h>
 
@@ -73,8 +72,7 @@ void Request::recieve(int fd)
 
   if(auto contentLength = findHeader("content-length"))
   {
-    size_t len;
-    std::from_chars(contentLength->begin(), contentLength->end(), len);
+    auto len = str2num<size_t>(*contentLength);
 
     pos -= endHeadersPos + 2;
 

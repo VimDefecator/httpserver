@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+#include <charconv>
 #include <cstring>
 #include <errno.h>
 
@@ -56,5 +57,13 @@ public:
 private:
   std::vector<char> &vec_;
 };
+
+template<typename Num>
+Num str2num(std::string_view str)
+{
+  Num num;
+  std::from_chars(str.begin(), str.end(), num);
+  return num;
+}
 
 #endif
