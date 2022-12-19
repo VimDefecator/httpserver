@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "classutils.hh"
 
 namespace Http
 {
@@ -57,7 +58,7 @@ namespace Http
     std::vector<std::pair<std::string_view, std::string_view>> headersStrViews_;
   };
 
-  class Response
+  class Response : public EnableMoveGetter<Response>
   {
   public:
     Response(int statusCode);
