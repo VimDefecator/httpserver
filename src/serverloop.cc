@@ -7,7 +7,7 @@ ServerLoop::ServerLoop(int port)
 
 void ServerLoop::setHandler(std::string uri, RequestHandler handler)
 {
-  uri2handler_[std::move(uri)] = handler;
+  uri2handler_[std::move(uri)] = std::move(handler);
 }
 
 void ServerLoop::exec()
