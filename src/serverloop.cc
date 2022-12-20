@@ -36,9 +36,13 @@ void ServerLoop::exec()
 
 std::optional<Http::Response> ServerLoop::handleRequest(const Http::Request &req)
 {
-  if(auto it = uri2handler_.lower_bound(req.uri()); it != uri2handler_.begin())
-    if(const auto &[uri, handler] = *--it; req.uri().starts_with(uri))
-      return {handler(req)};
+  auto it = uri2handler_.lower_bound(req.uri());
+
+  if(it != uri2handler_.end() && req.uri() == it->first)
+    return {it->second(req)};
+
+  if(it != uri2handler_.end() && req.uri().starts_with((--it)->first))
+    return {it->second(req)};
 
   return {};
 }

@@ -7,7 +7,7 @@
 #include <functional>
 #include "classutils.hh"
 
-class Html : public EnableMoveGetter<Html>
+class Html
 {
 public:
   Html();
@@ -22,13 +22,23 @@ public:
   Html(const Html &);
   Html &operator=(const Html &);
 
-  Html &setText(std::string text);
-  Html &setName(std::string name);
-  Html &addAttr(std::string name, std::string value);
-  Html &addChild(Html &&child);
-  Html &addChild(const Html &child);
+  void setText(std::string text);
+  void setName(std::string name);
+  void addAttr(std::string name, std::string value);
+  void addChild(Html child);
 
-  Html &applyFn(std::function<void(Html&)> fn);
+  void applyFn(std::function<void(Html&)> fn);
+
+  void selfClose();
+  void noClose();
+
+  CHAINMETHOD(withText, setText);
+  CHAINMETHOD(withName, setName);
+  CHAINMETHOD(withAttr, addAttr);
+  CHAINMETHOD(withChild, addChild);
+  CHAINMETHOD(withAppliedFn, applyFn);
+  CHAINMETHOD(withSelfClose, selfClose);
+  CHAINMETHOD(withNoClose, noClose);
 
   operator bool();
 

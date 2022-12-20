@@ -58,15 +58,18 @@ namespace Http
     std::vector<std::pair<std::string_view, std::string_view>> headersStrViews_;
   };
 
-  class Response : public EnableMoveGetter<Response>
+  class Response
   {
   public:
     Response(int statusCode);
 
-    Response &addHeader(std::string_view name, std::string_view value);
+    void addHeader(std::string_view name, std::string_view value);
 
-    Response &setBody(std::vector<char> body);
-    Response &setBody(std::string_view body);
+    void setBody(std::vector<char> body);
+    void setBody(std::string_view body);
+
+    CHAINMETHOD(withHeader, addHeader);
+    CHAINMETHOD(withBody, setBody);
 
     void send(int fd);
 

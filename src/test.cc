@@ -1,5 +1,3 @@
-#include <iostream>
-#include <charconv>
 #include "serverloop.hh"
 #include "html.hh"
 #include "utils.hh"
@@ -13,31 +11,22 @@ int main(int argc, char **argv)
     if(req.method() != Http::Method::Get)
       return Http::Response(405);
 
-    return Http::Response(200)
-      .addHeader("content-type", "text/html")
-      .setBody(
-        Html("html", {{"lang", "en"}})
-          .addChild(Html("head", {})
-            .addChild(Html("title", {})
-              .addChild(Html("Sample page"))
-              .move())
-            .move())
-          .addChild(Html("body", {})
-            .addChild(Html("h1", {})
-              .addChild(Html("Sample header"))
-              .move())
-            .applyFn([uri=req.uri()](auto &h)
-            {
-              auto p = Html("p", {})
-                        .addChild(Html("Sample paragraph"))
-                        .move();
+    if(req.uri().size() > 1)
+      return Http::Response(404);
 
-              for(auto num = str2num<int>(uri.substr(1)); num--;)
-                h.addChild(p);
-            })
-            .move())
-          .dump())
-      .move();
+    return Http::Response(200)
+      .withHeader("content-type", "text/html")
+      .withBody(
+        Html("html", {{"lang", "en"}})
+          .withChild(Html("head", {})
+            .withChild(Html("title", {})
+              .withChild(Html("Sashka website"))))
+          .withChild(Html("body", {})
+            .withChild(Html("h1", {})
+              .withChild(Html("Welcome!")))
+            .withChild(Html("p", {})
+              .withChild(Html("HERE'S SOME PARAGRAPH FOR YOU MAN"))))
+          .dump());
   });
 
   loop.exec();

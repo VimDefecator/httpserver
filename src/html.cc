@@ -4,13 +4,14 @@
 
 struct Html::Impl
 {
-  enum class Type { C, L };
+  enum class Type { Tag, Text };
+  enum class TagType { Pair, SelfClose, NoClose };
 
   void dump(std::ostream &out, int indSize)
   {
     auto ind = std::string(indSize, ' ');
 
-    if(type_ == Type::C)
+    if(type_ == Type::Tag)
     {
       out << ind << '<' << name_;
       for(auto &[name, value] : attribs_)
@@ -24,7 +25,7 @@ struct Html::Impl
         out << '\"';
       }
       
-      if(!children_.empty())
+      if(tagType_ == TagType::Pair)
       {
         out << ">\n";
 
@@ -33,18 +34,33 @@ struct Html::Impl
 
         out << ind << "</" << name_ << ">\n";
       }
+      else if(tagType_ == TagType::SelfClose)
+      {
+        out << "/>\n";
+      }
       else
       {
-        out << " />\n";
+        out << ">\n";
       }
     }
     else
     {
-      out << ind << text_ << '\n';
+      for(auto ch : text_)
+      {
+        switch(ch)
+        {
+          case '<' : out << "&lt"; break;
+          case '>' : out << "&gt"; break;
+          case '&' : out << "&amp;"; break;
+          default  : out << ch; break;
+        }
+      }
+      out << '\n';
     }
   }
 
   Type type_;
+  TagType tagType_ = TagType::Pair;
 
   std::string name_;
   std::vector<std::pair<std::string, std::string>> attribs_;
@@ -99,50 +115,47 @@ Html &Html::operator=(const Html &other)
   return *this;
 }
 
-Html &Html::setText(std::string text)
+void Html::setText(std::string text)
 {
   if(!impl_)
     impl_ = std::make_unique<Impl>();
 
-  impl_->type_ = Impl::Type::L;
+  impl_->type_ = Impl::Type::Text;
   impl_->text_ = std::move(text);
-
-  return *this;
 }
 
-Html &Html::setName(std::string name)
+void Html::setName(std::string name)
 {
   if(!impl_)
     impl_ = std::make_unique<Impl>();
 
-  impl_->type_ = Impl::Type::C;
+  impl_->type_ = Impl::Type::Tag;
   impl_->name_ = std::move(name);
-
-  return *this;
 }
 
-Html &Html::addAttr(std::string name, std::string value)
+void Html::addAttr(std::string name, std::string value)
 {
   impl_->attribs_.emplace_back(std::move(name), std::move(value));
-  return *this;
 }
 
-Html &Html::addChild(Html &&child)
+void Html::addChild(Html child)
 {
   impl_->children_.push_back(std::move(child));
-  return *this;
 }
 
-Html &Html::addChild(const Html &child)
-{
-  impl_->children_.push_back(child);
-  return *this;
-}
-
-Html &Html::applyFn(std::function<void(Html&)> fn)
+void Html::applyFn(std::function<void(Html&)> fn)
 {
   fn(*this);
-  return *this;
+}
+
+void Html::selfClose()
+{
+  impl_->tagType_ = Impl::TagType::SelfClose;
+}
+
+void Html::noClose()
+{
+  impl_->tagType_ = Impl::TagType::NoClose;
 }
 
 Html::operator bool()

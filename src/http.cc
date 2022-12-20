@@ -222,24 +222,21 @@ Response::Response(int statusCode)
                            .app("\r\n");
 }
 
-Response &Response::addHeader(std::string_view name, std::string_view value)
+void Response::addHeader(std::string_view name, std::string_view value)
 {
   AppendToCharVec(headBuf_).app(name).app(": ").app(value).app("\r\n");
-  return *this;
 }
 
-Response &Response::setBody(std::vector<char> body)
+void Response::setBody(std::vector<char> body)
 {
   bodyBuf_ = std::move(body);
   addContentLengthHeader();
-  return *this;
 }
 
-Response &Response::setBody(std::string_view body)
+void Response::setBody(std::string_view body)
 {
   bodyBuf_ = std::vector(body.begin(), body.end());
   addContentLengthHeader();
-  return *this;
 }
 
 void Response::addContentLengthHeader()
