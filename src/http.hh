@@ -68,8 +68,8 @@ namespace Http
     void setBody(std::vector<char> body);
     void setBody(std::string_view body);
 
-    CHAINMETHOD(withHeader, addHeader);
-    CHAINMETHOD(withBody, setBody);
+    CHAIN_METHOD(withHeader, addHeader);
+    CHAIN_METHOD(withBody, setBody);
 
     void send(int fd);
 

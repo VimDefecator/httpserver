@@ -29,35 +29,34 @@ public:
   void selfClose();
   void noClose();
 
-  CHAINMETHOD(wText, setText);
-  CHAINMETHOD(wName, setName);
-  CHAINMETHOD(wAttr, addAttr);
-  CHAINMETHOD(wChild, addChild);
-  CHAINMETHOD(operator<<, addChild);
-  CHAINMETHOD(wFunc, applyFn);
-  CHAINMETHOD(wSelfClose, selfClose);
-  CHAINMETHOD(wNoClose, noClose);
+  CHAIN_METHOD(wText, setText);
+  CHAIN_METHOD(wName, setName);
+  CHAIN_METHOD(wAttr, addAttr);
+  CHAIN_METHOD(wChild, addChild);
+  CHAIN_METHOD(wFunc, applyFn);
+  CHAIN_METHOD(wSelfClose, selfClose);
+  CHAIN_METHOD(wNoClose, noClose);
+
+  CHAIN_METHOD_FOR_TYPE(operator<<, addChild, Html);
+  CHAIN_METHOD_FOR_TYPE(operator<<, applyFn, std::function<void(Html&)>);
+
+  struct Attr { std::string name, value; };
+  void addAttr(Attr attr) { addAttr(std::move(attr.name), std::move(attr.value)); }
+  CHAIN_METHOD_FOR_TYPE(operator<<, addAttr, Attr);
+
+  CHAIN_METHOD_FOR_TYPE_NO_ARG(operator<<, selfClose, SelfClose);
+  CHAIN_METHOD_FOR_TYPE_NO_ARG(operator<<, noClose, NoClose);
 
   struct Dump {};
   std::string operator<<(Dump) { return dump(); }
 
-  operator bool();
-
   std::string dump();
+
+  operator bool();
 
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
 };
-
-inline Html hTag(std::string name)
-{
-  return Html().wName(std::move(name));
-}
-
-inline Html hText(std::string text)
-{
-  return Html().wText(std::move(text));
-}
 
 #endif
