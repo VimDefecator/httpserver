@@ -2,6 +2,25 @@
 #include <iterator>
 #include <sstream>
 
+namespace
+{
+  void escapeStr(std::ostream &out, std::string_view str)
+  {
+    for(auto ch : str)
+    {
+      switch(ch)
+      {
+        case '<' : out << "&lt;"; break;
+        case '>' : out << "&gt;"; break;
+        case '&' : out << "&amp;"; break;
+        case '"' : out << "&quot;"; break;
+        case '\\' : out << "&bsol;"; break;
+        default  : out << ch; break;
+      }
+    }
+  }
+}
+
 struct Html::Impl
 {
   enum class Type { Tag, Text };
@@ -16,13 +35,13 @@ struct Html::Impl
       out << ind << '<' << name_;
       for(auto &[name, value] : attribs_)
       {
-        out << ' ' << name << "=\"";
-        for(auto ch : value)
+        out << ' ' << name;
+        if(!value.empty())
         {
-          if(ch == '\\' || ch == '\"') out << '\\';
-          out << ch;
+          out << "=\"";
+          escapeStr(out, value);
+          out << '\"';
         }
-        out << '\"';
       }
       
       if(tagType_ == TagType::Pair)
@@ -45,16 +64,7 @@ struct Html::Impl
     }
     else
     {
-      for(auto ch : text_)
-      {
-        switch(ch)
-        {
-          case '<' : out << "&lt"; break;
-          case '>' : out << "&gt"; break;
-          case '&' : out << "&amp;"; break;
-          default  : out << ch; break;
-        }
-      }
+      escapeStr(out, text_);
       out << '\n';
     }
   }
@@ -71,18 +81,6 @@ struct Html::Impl
 
 Html::Html()
 {
-}
-
-Html::Html(std::string text)
-{
-  setText(std::move(text));
-}
-
-Html::Html(std::string name, std::initializer_list<std::pair<std::string_view, std::string_view>> attrs)
-{
-  setName(std::move(name));
-  for(auto [name, value] : attrs)
-    addAttr(std::string(name), std::string(value));
 }
 
 Html::~Html()

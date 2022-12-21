@@ -11,9 +11,6 @@ class Html
 {
 public:
   Html();
-  Html(std::string text);
-  Html(std::string name, std::initializer_list<std::pair<std::string_view, std::string_view>> attrs);
-
   ~Html();
 
   Html(Html &&);
@@ -32,13 +29,17 @@ public:
   void selfClose();
   void noClose();
 
-  CHAINMETHOD(withText, setText);
-  CHAINMETHOD(withName, setName);
-  CHAINMETHOD(withAttr, addAttr);
-  CHAINMETHOD(withChild, addChild);
-  CHAINMETHOD(withAppliedFn, applyFn);
-  CHAINMETHOD(withSelfClose, selfClose);
-  CHAINMETHOD(withNoClose, noClose);
+  CHAINMETHOD(wText, setText);
+  CHAINMETHOD(wName, setName);
+  CHAINMETHOD(wAttr, addAttr);
+  CHAINMETHOD(wChild, addChild);
+  CHAINMETHOD(operator<<, addChild);
+  CHAINMETHOD(wFunc, applyFn);
+  CHAINMETHOD(wSelfClose, selfClose);
+  CHAINMETHOD(wNoClose, noClose);
+
+  struct Dump {};
+  std::string operator<<(Dump) { return dump(); }
 
   operator bool();
 
@@ -48,5 +49,15 @@ private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
 };
+
+inline Html hTag(std::string name)
+{
+  return Html().wName(std::move(name));
+}
+
+inline Html hText(std::string text)
+{
+  return Html().wText(std::move(text));
+}
 
 #endif
