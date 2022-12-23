@@ -24,6 +24,8 @@ namespace html
 
   inline Html::NoClose hNoClose() { return {}; }
 
+  inline Html hNop() { return {}; }
+
   inline Html::Dump hDump() { return {}; }
 }
 

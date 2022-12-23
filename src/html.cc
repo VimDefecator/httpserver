@@ -138,7 +138,8 @@ void Html::addAttr(std::string name, std::string value)
 
 void Html::addChild(Html child)
 {
-  impl_->children_.push_back(std::move(child));
+  if(child)
+    impl_->children_.push_back(std::move(child));
 }
 
 void Html::applyFn(std::function<void(Html&)> fn)

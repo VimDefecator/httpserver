@@ -41,7 +41,7 @@ std::optional<Http::Response> ServerLoop::handleRequest(const Http::Request &req
   if(it != uri2handler_.end() && req.uri() == it->first)
     return {it->second(req)};
 
-  if(it != uri2handler_.end() && req.uri().starts_with((--it)->first))
+  if(it != uri2handler_.begin() && req.uri().starts_with((--it)->first))
     return {it->second(req)};
 
   return {};

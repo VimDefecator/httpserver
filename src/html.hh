@@ -7,7 +7,7 @@
 #include <functional>
 #include "classutils.hh"
 
-class Html
+class Html : public EnableMoveGetter<Html>
 {
 public:
   Html();
