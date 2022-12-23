@@ -2,8 +2,10 @@
 #include "html.hh"
 #include "htmlutils.hh"
 #include "utils.hh"
+#include <filesystem>
 
 using namespace html;
+namespace fs = std::filesystem;
 
 int main(int argc, char **argv)
 {
@@ -20,24 +22,21 @@ int main(int argc, char **argv)
     return Http::Response(200)
       .withHeader("content-type", "text/html")
       .withBody(
-        hTag("html").wAttr("lang", "en")
+        hTag("html")
+        << hAttr("lang", "en")
         << (hTag("head")
+          << (hTag("meta")
+            << hAttr("charset", "utf-8"))
           << (hTag("title")
-            << hText("Sashka website")))
+            << hText("Двач 0.1")))
         << (hTag("body")
           << (hTag("h1")
-            << hText("Welcome!"))
-          << (hTag("form")
-            << (hTag("p")
-              << (hTag("label")
-                << hText("Customer name:")
-                << hTag("input").wNoClose()))
-            << hFieldSet("Pizza size",
-                        {{"type", "radio"}, {"name", "size"}},
-                        {"Small", "Medium", "Large"})
-            << hFieldSet("Pizza toppings",
-                        {{"type", "checkbox"}},
-                        {"Bacon", "Extra cheese", "Onion", "Mushrom"})))
+            << hText("Добро пожаловать. Снова."))
+          << [&](auto &h) {
+            for(auto entry : fs::directory_iterator("posts"))
+              if(entry.is_regular_file())
+                h << (hTag("p")
+                    << hText(getFileAsString(entry.path())));})
         << hDump());
   });
 

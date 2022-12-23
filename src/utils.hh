@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 #include <charconv>
+#include <fstream>
+#include <iterator>
 #include <cstring>
 #include <errno.h>
 
@@ -64,6 +66,13 @@ Num str2num(std::string_view str)
   Num num;
   std::from_chars(str.begin(), str.end(), num);
   return num;
+}
+
+template<typename Path>
+std::string getFileAsString(Path&& path)
+{
+  auto file = std::ifstream(std::forward<Path>(path));
+  return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
 #endif
