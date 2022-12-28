@@ -3,6 +3,9 @@
 #include "htmlutils.hh"
 #include "utils.hh"
 #include <filesystem>
+#include <fstream>
+#include <atomic>
+#include <algorithm>
 #include <cstdint>
 
 using namespace html;
@@ -50,6 +53,18 @@ namespace
       << (hTag("pre") << hText(getFileAsString(path)));
   }
 
+  Html makePostingForm()
+  {
+    return hTag("form")
+      << hAttr("method", "post")
+      << hAttr("enctype", "text/plain")
+      << hAttr("action", "/posts")
+      << (hTag("p")
+        << hTag("textarea").wAttr("name", "content").wAttr("rows", "6").wAttr("cols", "60"))
+      << (hTag("p")
+        << (hTag("button") << hText("Отправить")));
+  }
+
   Html makePage(Html body)
   {
     return hTag("html")
@@ -67,42 +82,64 @@ int main(int argc, char **argv)
 {
   auto loop = ServerLoop(atoi(argv[1]));
 
-  loop.setHandler("/", [](const auto &req)
-  {
-    if(req.method() != Http::Method::Get)
-      return Http::Response(405);
+  std::atomic<unsigned> numPosts_;
 
+  numPosts_ = std::count_if(fs::directory_iterator("posts"),
+                            fs::directory_iterator(),
+                            [](auto &ent){return ent.is_regular_file();});
+
+  loop.setHandler("/", [&](const auto &req)
+  {
     if(req.uri().size() > 1)
       return Http::Response(404);
 
-    return Http::Response(200)
-      .withHeader("content-type", "text/html")
-      .withBody(
-        makePage(
-          hTag("body")
-          << (hTag("h1")
-            << hText("Добро пожаловать. Снова."))
-          << [&](auto &h) {
-            for(auto entry : fs::directory_iterator("posts"))
-              if(entry.is_regular_file())
-                h << makePostFromFileTrunc(entry.path());})
-        << hDump());
+    if(req.method() == Http::Method::Get)
+    {
+      return Http::Response(200)
+        .withHeader("content-type", "text/html")
+        .withBody(
+          makePage(
+            hTag("body")
+            << (hTag("h1")
+              << hText("Добро пожаловать. Снова."))
+            << [&](auto &h) {
+              auto numPosts = numPosts_.load();
+              for(unsigned postNo = 0; postNo < numPosts; ++postNo)
+                h << makePostFromFileTrunc("posts/" + std::to_string(postNo));}
+            << makePostingForm())
+          << hDump());
+    }
+
+    return Http::Response(405);
   });
 
-  loop.setHandler("/posts/", [](const auto &req)
+  loop.setHandler("/posts", [&](const auto &req)
   {
-    if(req.method() != Http::Method::Get)
-      return Http::Response(405);
+    if(req.method() == Http::Method::Get)
+    {
+      auto path = std::string(req.uri().substr(1));
 
-    auto path = std::string(req.uri().substr(1));
+      return Http::Response(200)
+        .withHeader("content-type", "text/html")
+        .withBody(
+          makePage(
+            hTag("body")
+            << makePostFromFile(path))
+          << hDump());
+    }
 
-    return Http::Response(200)
-      .withHeader("content-type", "text/html")
-      .withBody(
-        makePage(
-          hTag("body")
-          << makePostFromFile(path))
-        << hDump());
+    if(req.method() == Http::Method::Post)
+    {
+      {
+        auto file = std::ofstream("posts/" + std::to_string(numPosts_++));
+        file << req.bodyStr().substr(8);
+      }
+
+      return Http::Response(303)
+        .withHeader("location", "/");
+    }
+
+    return Http::Response(405);
   });
 
   loop.exec();

@@ -34,8 +34,15 @@ namespace Http
     const std::vector<char> &body() const {
       return bodyBuf_;
     }
+    std::string_view bodyStr() const {
+      return std::string_view(bodyBuf_.data(), bodyBuf_.size());
+    }
 
     std::optional<std::string_view> findHeader(std::string_view name) const;
+
+    std::string toString() const {
+      return std::string(headBuf_.data(), headBuf_.size()) + std::string(bodyBuf_.data(), bodyBuf_.size());
+    }
 
     void recieve(int fd);
 

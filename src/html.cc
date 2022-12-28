@@ -46,12 +46,19 @@ struct Html::Impl
       
       if(tagType_ == TagType::Pair)
       {
-        out << ">\n";
+        out << '>';
 
-        for(auto &child : children_)
-          child.impl_->dump(out, indSize + 2);
+        if(!children_.empty())
+        {
+          out << '\n';
 
-        out << ind << "</" << name_ << ">\n";
+          for(auto &child : children_)
+            child.impl_->dump(out, indSize + 2);
+
+          out << ind;
+        }
+
+        out << "</" << name_ << ">\n";
       }
       else if(tagType_ == TagType::SelfClose)
       {
