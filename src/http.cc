@@ -74,14 +74,14 @@ void Request::recieve(int fd)
   {
     auto len = str2num<size_t>(*contentLength);
 
-    pos -= endHeadersPos + 2;
+    pos -= endHeadersPos;
 
     bodyBuf_.resize(len);
 
     while(pos < len)
     {
       pos += throwOnErr(
-        read(fd, &headBuf_[pos], len - pos),
+        read(fd, &bodyBuf_[pos], len - pos),
         "read data");
     }
   }
@@ -107,6 +107,8 @@ void Request::processHeadBuf()
 
     processHeaderLine(lineBegPos, lineEndPos);
   }
+
+  generateHeadersStrViews();
 }
 
 namespace
@@ -145,7 +147,8 @@ void Request::processHeaderLine(size_t absBegPos, size_t absEndPos)
   auto colPos = line.find(':', endNamePos);
   auto valPos = line.find_first_not_of(" \t\r\n", colPos + 1);
 
-  headers_.emplace_back(RelStrView(absBegPos, endNamePos), RelStrView(valPos, line.size() - valPos));
+  headers_.emplace_back(RelStrView(absBegPos, endNamePos),
+                        RelStrView(absBegPos + valPos, line.size() - valPos));
 
   for(auto i = absBegPos; i < absBegPos + endNamePos; ++i)
     headBuf_[i] = tolower(headBuf_[i]);

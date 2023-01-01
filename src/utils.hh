@@ -16,7 +16,8 @@ void zfill(T *dst)
   memset(dst, 0, sizeof(T));
 }
 
-inline int throwOnErr(int ret, std::string descr = "")
+template<typename Ret>
+Ret throwOnErr(Ret ret, std::string descr = "")
 {
   if(ret == -1)
     throw std::runtime_error(
