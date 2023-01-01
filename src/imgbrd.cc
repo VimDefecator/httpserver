@@ -16,8 +16,10 @@ using namespace html;
 
 namespace
 {
-  Html makePostFromFileTrunc(const std::string &path)
+  Html makePostFromFileTrunc(const std::string &filename)
   {
+    auto path = "posts/" + filename;
+
     auto buf = std::string(0x100, '\0');
     auto tooBig = false;
     {
@@ -42,26 +44,29 @@ namespace
       buf += "...";
     }
 
-    return hTag("p")
-      << (hTag("h3") << hText(path))
+    return
+      hTag("p")
+      << (hTag("h3") << hText(filename))
       << (hTag("pre")
         << hText(buf)
-        << (tooBig ? (hTag("a") << hAttr("href", path) << hText("MORE")) : hNop()));
+        << (tooBig ? (hTag("a").wAttr("href", path) << hText("MORE")) : hNop()));
   }
 
-  Html makePostFromFile(const std::string &path)
+  Html makePostFromFile(const std::string &filename)
   {
-    return hTag("p")
-      << (hTag("h3") << hText(path))
-      << (hTag("pre") << hText(getFileAsString(path)));
+    return
+      hTag("p")
+      << (hTag("h3") << hText(filename))
+      << (hTag("pre") << hText(getFileAsString("posts/" + filename)));
   }
 
   Html makePostingForm()
   {
-    return hTag("form")
-      << hAttr("method", "post")
-      << hAttr("enctype", "text/plain")
-      << hAttr("action", "/posts")
+    return
+      hTag("form")
+      .wAttr("method", "post")
+      .wAttr("enctype", "text/plain")
+      .wAttr("action", "/posts")
       << (hTag("p")
         << hTag("textarea").wAttr("name", "content").wAttr("rows", "6").wAttr("cols", "60"))
       << (hTag("p")
@@ -70,8 +75,8 @@ namespace
 
   Html makePage(Html body)
   {
-    return hTag("html")
-      << hAttr("lang", "en")
+    return
+      hTag("html").wAttr("lang", "en")
       << (hTag("head")
         << (hTag("meta")
           << hAttr("charset", "utf-8"))
@@ -121,8 +126,9 @@ void ImgBrd::init(int argc, char **argv)
               << hText("Добро пожаловать. Снова."))
             << [&](auto &h) {
               auto numPosts = state->numPosts.load();
-              for(unsigned postNo = 0; postNo < numPosts; ++postNo)
-                h << makePostFromFileTrunc("posts/" + std::to_string(postNo));}
+              for(unsigned postNo = 0; postNo < numPosts; ++postNo) {
+                auto filename = std::to_string(postNo);
+                h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);}}
             << makePostingForm())
           << hDump());
     }
@@ -134,26 +140,27 @@ void ImgBrd::init(int argc, char **argv)
   {
     if(req.method() == Http::Method::Get)
     {
-      auto path = std::string(req.uri().substr(1));
+      auto filename = std::string(req.uri().substr(7));
 
       return Http::Response(200)
         .withHeader("content-type", "text/html")
         .withBody(
           makePage(
             hTag("body")
-            << makePostFromFile(path))
+            << makePostFromFile(filename))
           << hDump());
     }
 
     if(req.method() == Http::Method::Post)
     {
+      auto filename = std::to_string(state->numPosts++);
       {
-        auto file = std::ofstream("posts/" + std::to_string(state->numPosts++));
+        auto file = std::ofstream("posts/" + filename);
         file << req.bodyStr().substr(8);
       }
 
       return Http::Response(303)
-        .withHeader("location", "/");
+        .withHeader("location", "/#post" + filename);
     }
 
     return Http::Response(405);
