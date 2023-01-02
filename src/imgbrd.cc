@@ -165,6 +165,8 @@ void ImgBrd::init(int argc, char **argv)
 
     return Http::Response(405);
   });
+
+  ServerLoop::initSignalHandling();
 }
 
 void ImgBrd::exec()

@@ -15,6 +15,8 @@ public:
   void setHandler(std::string uri, RequestHandler handler);
   void exec();
 
+  static void initSignalHandling();
+
 private:
   std::optional<Http::Response> handleRequest(const Http::Request &req);
 

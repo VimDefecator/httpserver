@@ -1,4 +1,5 @@
 #include "serverloop.hh"
+#include <csignal>
 
 ServerLoop::ServerLoop(int port)
   : listener_(port)
@@ -45,4 +46,9 @@ std::optional<Http::Response> ServerLoop::handleRequest(const Http::Request &req
     return {it->second(req)};
 
   return {};
+}
+
+void ServerLoop::initSignalHandling()
+{
+  signal(SIGPIPE, SIG_IGN);
 }
