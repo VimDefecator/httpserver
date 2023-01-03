@@ -90,6 +90,7 @@ struct ImgBrd::State
 {
   ServerLoop serverLoop;
   std::atomic<unsigned> numPosts;
+  int port;
 };
 
 ImgBrd::ImgBrd()
@@ -102,9 +103,9 @@ ImgBrd::~ImgBrd()
 
 void ImgBrd::init(int argc, char **argv)
 {
-  auto port = argc >= 2 ? atoi(argv[1]) : 80;
+  state_.reset(new State);
 
-  state_.reset(new State{.serverLoop = ServerLoop(port)});
+  state_->port = argc >= 2 ? atoi(argv[1]) : 80;
 
   state_->numPosts = std::count_if(fs::directory_iterator("posts"),
                                    fs::directory_iterator(),
@@ -171,5 +172,5 @@ void ImgBrd::init(int argc, char **argv)
 
 void ImgBrd::exec()
 {
-  state_->serverLoop.exec();
+  state_->serverLoop.exec(state_->port, 4);
 }

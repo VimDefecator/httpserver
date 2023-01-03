@@ -4,19 +4,32 @@
 #include <memory>
 #include <string>
 
+class AcceptedConnImpl;
+
 class AcceptedConn
 {
 public:
-  AcceptedConn() = default;
   AcceptedConn(int sock);
 
   ~AcceptedConn();
 
-  int fd();
+  int fd() const;
 
 private:
-  class Impl;
-  std::unique_ptr<Impl> impl_;
+  std::unique_ptr<AcceptedConnImpl> impl_;
+};
+
+class AcceptedConnShared
+{
+public:
+  AcceptedConnShared(int sock);
+
+  ~AcceptedConnShared();
+
+  int fd() const;
+
+private:
+  std::shared_ptr<AcceptedConnImpl> impl_;
 };
 
 class TcpListener
@@ -25,7 +38,8 @@ public:
   TcpListener(int port);
   ~TcpListener();
 
-  AcceptedConn acceptConn();
+  AcceptedConn acceptConn() const;
+  AcceptedConnShared acceptConnShared() const;
 
 private:
   class Impl;

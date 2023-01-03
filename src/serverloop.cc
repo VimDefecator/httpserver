@@ -1,37 +1,38 @@
 #include "serverloop.hh"
+#include "tcplistener.hh"
+#include "taskpool.hh"
 #include <csignal>
-
-ServerLoop::ServerLoop(int port)
-  : listener_(port)
-{
-}
 
 void ServerLoop::setHandler(std::string uri, RequestHandler handler)
 {
   uri2handler_[std::move(uri)] = std::move(handler);
 }
 
-void ServerLoop::exec()
+void ServerLoop::exec(int port, int numThreads)
 {
+  auto listener = TcpListener(port);
+  auto taskpool = TaskPool(numThreads);
+
   for(;;)
   {
-    auto conn = listener_.acceptConn();
-
-    Http::Request req;
-
-    try
+    taskpool.push([&, conn = listener.acceptConnShared()]
     {
-      req.recieve(conn.fd());
+      Http::Request req;
 
-      if(auto res = handleRequest(req))
-        res->send(conn.fd());
-      else
-        Http::Response(404).send(conn.fd());
-    }
-    catch(...)
-    {
-      Http::Response(500).send(conn.fd());
-    }
+      try
+      {
+        req.recieve(conn.fd());
+
+        if(auto res = handleRequest(req))
+          res->send(conn.fd());
+        else
+          Http::Response(404).send(conn.fd());
+      }
+      catch(...)
+      {
+        Http::Response(500).send(conn.fd());
+      }
+    });
   }
 }
 

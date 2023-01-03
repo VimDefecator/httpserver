@@ -11,10 +11,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-class AcceptedConn::Impl
+class AcceptedConnImpl
 {
 public:
-  Impl(int sock)
+  AcceptedConnImpl(int sock)
   {
     zfill(&addr_);
     addrLen_ = sizeof(addr_);
@@ -24,14 +24,14 @@ public:
       "accept connection");
   }
 
-  ~Impl()
+  ~AcceptedConnImpl()
   {
     throwOnErr(
       close(fd_),
       "close connection");
   }
 
-  int fd() { return fd_; }
+  int fd() const { return fd_; }
 
 private:
   int fd_;
@@ -40,7 +40,7 @@ private:
 };
 
 AcceptedConn::AcceptedConn(int sock)
-  : impl_(new Impl(sock))
+  : impl_(new AcceptedConnImpl(sock))
 {
 }
 
@@ -48,7 +48,21 @@ AcceptedConn::~AcceptedConn()
 {
 }
 
-int AcceptedConn::fd()
+int AcceptedConn::fd() const
+{
+  return impl_->fd();
+}
+
+AcceptedConnShared::AcceptedConnShared(int sock)
+  : impl_(new AcceptedConnImpl(sock))
+{
+}
+
+AcceptedConnShared::~AcceptedConnShared()
+{
+}
+
+int AcceptedConnShared::fd() const
 {
   return impl_->fd();
 }
@@ -76,9 +90,14 @@ public:
       "start listen");
   }
 
-  AcceptedConn acceptConn()
+  AcceptedConn acceptConn() const
   {
     return AcceptedConn(sock_);
+  }
+
+  AcceptedConnShared acceptConnShared() const
+  {
+    return AcceptedConnShared(sock_);
   }
 
 private:
@@ -95,7 +114,12 @@ TcpListener::~TcpListener()
 {
 }
 
-AcceptedConn TcpListener::acceptConn()
+AcceptedConn TcpListener::acceptConn() const
 {
   return impl_->acceptConn();
+}
+
+AcceptedConnShared TcpListener::acceptConnShared() const
+{
+  return impl_->acceptConnShared();
 }
