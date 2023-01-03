@@ -49,7 +49,7 @@ namespace
       << (hTag("h3") << hText(filename))
       << (hTag("pre")
         << hText(buf)
-        << (tooBig ? (hTag("a").wAttr("href", path) << hText("MORE")) : hNop()));
+        << (tooBig ? (hTag("a").wAttr("href", "/post/" + filename) << hText("MORE")) : hNop()));
   }
 
   Html makePostFromFile(const std::string &filename)
@@ -84,14 +84,103 @@ namespace
           << hText("Двач 0.1")))
       << body.move();
   }
+
+  Http::Response makeRedirect(std::string_view uri)
+  {
+    return Http::Response(303).withHeader("location", uri);
+  }
 }
 
-struct ImgBrd::State
+struct ImgBrd::Impl
 {
-  ServerLoop serverLoop;
-  std::atomic<unsigned> numPosts;
-  int port;
+  ServerLoop serverLoop_;
+  std::atomic<unsigned> numPosts_;
+  int port_;
+
+  Http::Response handleGetMain(const Http::Request &req);
+  Http::Response handleGetPage(const Http::Request &req);
+  Http::Response handleGetPost(const Http::Request &req);
+  Http::Response handlePostPost(const Http::Request &req);
+
+  using Handler = Http::Response (Impl::*)(const Http::Request &);
+
+  ServerLoop::RequestHandler makeHandler(Handler handler);
+  void setHandler(Http::Method method, std::string uri, Handler handler);
 };
+
+Http::Response ImgBrd::Impl::handleGetMain(const Http::Request &req)
+{
+  if(req.uri().size() > 1)
+    return Http::Response(404);
+
+  return makeRedirect("/page/0");
+}
+
+Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req)
+{
+  auto pageNo = str2num<unsigned>(req.uri().substr(6));
+
+  return Http::Response(200)
+    .withHeader("content-type", "text/html")
+    .withBody(
+      makePage(
+        hTag("body")
+        << (hTag("h1")
+          << hText("Добро пожаловать. Снова."))
+        << (hTag("p")
+          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo - 1)) << hText("<-пред "))
+          << hText("|")
+          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo + 1)) << hText(" след->")))
+        << [&](auto &h) {
+          auto numPosts = numPosts_.load();
+          auto fromPostNo = pageNo * 20;
+          auto toPostNo = std::min(numPosts, fromPostNo + 20);
+          for(unsigned postNo = fromPostNo; postNo < toPostNo; ++postNo) {
+            auto filename = std::to_string(postNo);
+            h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);}}
+        << (hTag("p")
+          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo - 1)) << hText("<-пред "))
+          << hText("|")
+          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo + 1)) << hText(" след->")))
+        << makePostingForm())
+      << hDump());
+}
+
+Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req)
+{
+  auto filename = std::string(req.uri().substr(6));
+
+  return Http::Response(200)
+    .withHeader("content-type", "text/html")
+    .withBody(
+      makePage(
+        hTag("body")
+        << makePostFromFile(filename))
+      << hDump());
+}
+
+Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req)
+{
+  auto numPosts = numPosts_++;
+
+  auto filename = std::to_string(numPosts);
+  {
+    auto file = std::ofstream("posts/" + filename);
+    file << req.bodyStr().substr(8);
+  }
+
+  return makeRedirect("/page/" + std::to_string(numPosts / 20) + "/#post" + filename);
+}
+
+ServerLoop::RequestHandler ImgBrd::Impl::makeHandler(Impl::Handler handler)
+{
+  return [this, handler](const Http::Request &req) { return ((*this).*handler)(req); };
+}
+
+void ImgBrd::Impl::setHandler(Http::Method method, std::string uri, Handler handler)
+{
+  serverLoop_.setHandler(method, std::move(uri), makeHandler(handler));
+}
 
 ImgBrd::ImgBrd()
 {
@@ -103,74 +192,26 @@ ImgBrd::~ImgBrd()
 
 void ImgBrd::init(int argc, char **argv)
 {
-  state_.reset(new State);
+  impl_.reset(new Impl);
 
-  state_->port = argc >= 2 ? atoi(argv[1]) : 80;
+  impl_->port_ = argc >= 2 ? atoi(argv[1]) : 80;
 
-  state_->numPosts = std::count_if(fs::directory_iterator("posts"),
+  impl_->numPosts_ = std::count_if(fs::directory_iterator("posts"),
                                    fs::directory_iterator(),
                                    [](auto &ent){return ent.is_regular_file();});
 
-  state_->serverLoop.setHandler("/", [state = state_.get()](const auto &req)
   {
-    if(req.uri().size() > 1)
-      return Http::Response(404);
-
-    if(req.method() == Http::Method::Get)
-    {
-      return Http::Response(200)
-        .withHeader("content-type", "text/html")
-        .withBody(
-          makePage(
-            hTag("body")
-            << (hTag("h1")
-              << hText("Добро пожаловать. Снова."))
-            << [&](auto &h) {
-              auto numPosts = state->numPosts.load();
-              for(unsigned postNo = 0; postNo < numPosts; ++postNo) {
-                auto filename = std::to_string(postNo);
-                h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);}}
-            << makePostingForm())
-          << hDump());
-    }
-
-    return Http::Response(405);
-  });
-
-  state_->serverLoop.setHandler("/posts", [state = state_.get()](const auto &req)
-  {
-    if(req.method() == Http::Method::Get)
-    {
-      auto filename = std::string(req.uri().substr(7));
-
-      return Http::Response(200)
-        .withHeader("content-type", "text/html")
-        .withBody(
-          makePage(
-            hTag("body")
-            << makePostFromFile(filename))
-          << hDump());
-    }
-
-    if(req.method() == Http::Method::Post)
-    {
-      auto filename = std::to_string(state->numPosts++);
-      {
-        auto file = std::ofstream("posts/" + filename);
-        file << req.bodyStr().substr(8);
-      }
-
-      return Http::Response(303)
-        .withHeader("location", "/#post" + filename);
-    }
-
-    return Http::Response(405);
-  });
+    using M = Http::Method;
+    impl_->setHandler(M::Get , "/"     , &Impl::handleGetMain);
+    impl_->setHandler(M::Get , "/page/", &Impl::handleGetPage);
+    impl_->setHandler(M::Get , "/post/", &Impl::handleGetPost);
+    impl_->setHandler(M::Post, "/post" , &Impl::handlePostPost);
+  }
 
   ServerLoop::initSignalHandling();
 }
 
 void ImgBrd::exec()
 {
-  state_->serverLoop.exec(state_->port, 4);
+  impl_->serverLoop_.exec(impl_->port_, 4);
 }

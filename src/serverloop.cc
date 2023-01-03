@@ -3,9 +3,9 @@
 #include "taskpool.hh"
 #include <csignal>
 
-void ServerLoop::setHandler(std::string uri, RequestHandler handler)
+void ServerLoop::setHandler(Http::Method method, std::string uri, RequestHandler handler)
 {
-  uri2handler_[std::move(uri)] = std::move(handler);
+  method2uri2handler_[method][std::move(uri)] = std::move(handler);
 }
 
 void ServerLoop::exec(int port, int numThreads)
@@ -15,7 +15,7 @@ void ServerLoop::exec(int port, int numThreads)
 
   for(;;)
   {
-    taskpool.push([&, conn = listener.acceptConnShared()]
+    taskpool.push([this, conn = listener.acceptConnShared()]
     {
       Http::Request req;
 
@@ -38,13 +38,20 @@ void ServerLoop::exec(int port, int numThreads)
 
 std::optional<Http::Response> ServerLoop::handleRequest(const Http::Request &req)
 {
-  auto it = uri2handler_.lower_bound(req.uri());
+  auto uri2handlerIt = method2uri2handler_.find(req.method());
 
-  if(it != uri2handler_.end() && req.uri() == it->first)
-    return {it->second(req)};
+  if(uri2handlerIt == method2uri2handler_.end())
+    return {};
 
-  if(it != uri2handler_.begin() && req.uri().starts_with((--it)->first))
-    return {it->second(req)};
+  auto &uri2handler = uri2handlerIt->second;
+
+  auto handlerIt = uri2handler.lower_bound(req.uri());
+
+  if(handlerIt != uri2handler.end() && req.uri() == handlerIt->first)
+    return {handlerIt->second(req)};
+
+  if(handlerIt != uri2handler.begin() && req.uri().starts_with((--handlerIt)->first))
+    return {handlerIt->second(req)};
 
   return {};
 }
