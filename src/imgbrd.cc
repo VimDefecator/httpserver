@@ -14,6 +14,8 @@
 namespace fs = std::filesystem;
 using namespace html;
 
+static constexpr auto c_pageSize = 20;
+
 namespace
 {
   Html makePostFromFileTrunc(const std::string &filename)
@@ -73,6 +75,43 @@ namespace
         << (hTag("button") << hText("Отправить")));
   }
 
+  Html makePageLink(unsigned pageNo, std::string text)
+  {
+    return
+      hTag("a").wAttr("href", "/page/" + std::to_string(pageNo))
+      << hText(std::move(text));
+  }
+
+  Html makePageLink(unsigned pageNo)
+  {
+    return makePageLink(pageNo, std::to_string(pageNo));
+  }
+
+  Html makePaginationPanel(unsigned pageNo, unsigned numPages)
+  {
+    return
+      hTag("p")
+      << (pageNo > 0
+        ? makePageLink(pageNo - 1, "<-пред ")
+        : hText("<-пред "))
+      << hText("|")
+      << (pageNo < numPages - 1
+        ? makePageLink(pageNo + 1, " след->")
+        : hText(" след->"))
+      << hTag("br").wNoClose()
+      << makePageLink(0)
+      << [&](auto &h) {
+        auto fromPageNo = pageNo > 4 ? pageNo - 3 : 1;
+        auto toPageNo = std::min(pageNo + 3, numPages - 2);
+        if(fromPageNo > 1)
+          h << hText("...");
+        for(auto no = fromPageNo; no <= toPageNo; ++no)
+          h << makePageLink(no);
+        if(toPageNo < numPages - 2)
+          h << hText("...");}
+      << makePageLink(numPages - 1);
+  }
+
   Html makePage(Html body)
   {
     return
@@ -120,6 +159,12 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req)
 {
   auto pageNo = str2num<unsigned>(req.uri().substr(6));
 
+  auto numPosts = numPosts_.load();
+  auto numPages = numPosts ? (numPosts - 1) / c_pageSize + 1 : 1;
+
+  if(pageNo > numPages)
+    return Http::Response(404);
+
   return Http::Response(200)
     .withHeader("content-type", "text/html")
     .withBody(
@@ -127,21 +172,14 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req)
         hTag("body")
         << (hTag("h1")
           << hText("Добро пожаловать. Снова."))
-        << (hTag("p")
-          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo - 1)) << hText("<-пред "))
-          << hText("|")
-          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo + 1)) << hText(" след->")))
+        << makePaginationPanel(pageNo, numPages)
         << [&](auto &h) {
-          auto numPosts = numPosts_.load();
-          auto fromPostNo = pageNo * 20;
-          auto toPostNo = std::min(numPosts, fromPostNo + 20);
+          auto fromPostNo = pageNo * c_pageSize;
+          auto toPostNo = std::min(numPosts, fromPostNo + c_pageSize);
           for(unsigned postNo = fromPostNo; postNo < toPostNo; ++postNo) {
             auto filename = std::to_string(postNo);
             h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);}}
-        << (hTag("p")
-          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo - 1)) << hText("<-пред "))
-          << hText("|")
-          << (hTag("a").wAttr("href", "/page/" + std::to_string(pageNo + 1)) << hText(" след->")))
+        << makePaginationPanel(pageNo, numPages)
         << makePostingForm())
       << hDump());
 }
@@ -169,7 +207,7 @@ Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req)
     file << req.bodyStr().substr(8);
   }
 
-  return makeRedirect("/page/" + std::to_string(numPosts / 20) + "/#post" + filename);
+  return makeRedirect("/page/" + std::to_string(numPosts / c_pageSize) + "/#post" + filename);
 }
 
 ServerLoop::RequestHandler ImgBrd::Impl::makeHandler(Impl::Handler handler)
