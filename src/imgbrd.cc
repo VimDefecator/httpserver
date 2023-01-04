@@ -3,6 +3,7 @@
 #include "html.hh"
 #include "htmlutils.hh"
 #include "utils.hh"
+#include "threadsafeobject.hh"
 
 #include <atomic>
 #include <algorithm>
@@ -129,15 +130,29 @@ namespace
 
   Http::Response makeRedirect(std::string_view uri)
   {
-    return Http::Response(303).withHeader("location", uri);
+    return Http::Response(303)
+      .withHeader("location", uri);
+  }
+
+  Http::Response makeContent200(std::string_view content)
+  {
+    return Http::Response(200)
+      .withHeader("content-type", "text/html")
+      .withBody(content);
   }
 }
 
 struct ImgBrd::Impl
 {
   ServerLoop serverLoop_;
-  std::atomic<unsigned> numPosts_;
   int port_;
+  std::atomic<unsigned> numPosts_;
+  ThreadSafeObject<std::map<std::string, std::string, std::less<>>> cache_;
+
+  template<typename Result>
+  Result useCache(std::string_view uri,
+                  std::function<std::string()> makeContent,
+                  std::function<Result(std::string_view)> useContent);
 
   Http::Response handleGetMain(const Http::Request &req, std::string_view subURI);
   Http::Response handleGetPage(const Http::Request &req, std::string_view subURI);
@@ -147,6 +162,29 @@ struct ImgBrd::Impl
   using Handler = Http::Response (Impl::*)(const Http::Request &, std::string_view);
   void setHandler(Http::Method method, std::string uri, Handler handler);
 };
+
+template<typename Result>
+Result ImgBrd::Impl::useCache(std::string_view uri,
+                              std::function<std::string()> makeContent,
+                              std::function<Result(std::string_view)> useContent)
+{
+  {
+    std::shared_lock _(cache_.mx());
+
+    if(auto it = cache_->find(uri); it != cache_->end())
+      return useContent(it->second);
+  }
+
+  std::unique_lock _(cache_.mx());
+
+  auto [it, isNew] = cache_->emplace(uri, "");
+  auto &content = it->second;
+
+  if(isNew)
+    content = makeContent();
+
+  return useContent(content);
+}
 
 Http::Response ImgBrd::Impl::handleGetMain(const Http::Request &req, std::string_view subURI)
 {
@@ -166,10 +204,9 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
   if(pageNo > numPages)
     return Http::Response(404);
 
-  return Http::Response(200)
-    .withHeader("content-type", "text/html")
-    .withBody(
-      makePage(
+  return useCache<Http::Response>(req.uri(),
+    [&] {
+      return makePage(
         hTag("body")
         << (hTag("h1")
           << hText("Добро пожаловать. Снова."))
@@ -181,21 +218,24 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
             auto filename = std::to_string(postNo);
             h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);}}
         << makePaginationPanel(pageNo, numPages)
-        << makePostingForm())
-      << hDump());
+        << makePostingForm()
+      ).dump();
+    },
+    makeContent200);
 }
 
 Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string_view subURI)
 {
   auto filename = std::string(subURI);
 
-  return Http::Response(200)
-    .withHeader("content-type", "text/html")
-    .withBody(
-      makePage(
+  return useCache<Http::Response>(req.uri(),
+    [&] {
+      return makePage(
         hTag("body")
-        << makePostFromFile(filename))
-      << hDump());
+        << makePostFromFile(filename)
+      ).dump();
+    },
+    makeContent200);
 }
 
 Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req, std::string_view subURI)
@@ -211,7 +251,29 @@ Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req, std::strin
     file << req.bodyStr().substr(8);
   }
 
-  return makeRedirect("/page/" + std::to_string(numPosts / c_pageSize) + "/#post" + filename);
+  auto lastPageUri = "/page/" + std::to_string(numPosts / c_pageSize);
+
+  {
+    std::unique_lock _(cache_.mx());
+
+    if(numPosts % c_pageSize == 0)
+    {
+      auto it1 = cache_->lower_bound("/page/");
+      auto it2 = it1;
+
+      while(it2 != cache_->end() && it2->second.starts_with("/page/"))
+        ++it2;
+
+      cache_->erase(it1, it2);
+    }
+    else
+    {
+      cache_->erase(lastPageUri);
+      cache_->erase(lastPageUri + "/");
+    }
+  }
+
+  return makeRedirect(lastPageUri + "/#post" + filename);
 }
 
 void ImgBrd::Impl::setHandler(Http::Method method, std::string uri, Handler handler)
