@@ -68,9 +68,12 @@ namespace
       hTag("form")
       .wAttr("method", "post")
       .wAttr("enctype", "text/plain")
-      .wAttr("action", "/posts")
+      .wAttr("action", "/post")
       << (hTag("p")
-        << hTag("textarea").wAttr("name", "content").wAttr("rows", "6").wAttr("cols", "60"))
+        << hTag("textarea")
+          .wAttr("name", "content")
+          .wAttr("rows", "6")
+          .wAttr("cols", "60"))
       << (hTag("p")
         << (hTag("button") << hText("Отправить")));
   }
@@ -136,28 +139,26 @@ struct ImgBrd::Impl
   std::atomic<unsigned> numPosts_;
   int port_;
 
-  Http::Response handleGetMain(const Http::Request &req);
-  Http::Response handleGetPage(const Http::Request &req);
-  Http::Response handleGetPost(const Http::Request &req);
-  Http::Response handlePostPost(const Http::Request &req);
+  Http::Response handleGetMain(const Http::Request &req, std::string_view subURI);
+  Http::Response handleGetPage(const Http::Request &req, std::string_view subURI);
+  Http::Response handleGetPost(const Http::Request &req, std::string_view subURI);
+  Http::Response handlePostPost(const Http::Request &req, std::string_view subURI);
 
-  using Handler = Http::Response (Impl::*)(const Http::Request &);
-
-  ServerLoop::RequestHandler makeHandler(Handler handler);
+  using Handler = Http::Response (Impl::*)(const Http::Request &, std::string_view);
   void setHandler(Http::Method method, std::string uri, Handler handler);
 };
 
-Http::Response ImgBrd::Impl::handleGetMain(const Http::Request &req)
+Http::Response ImgBrd::Impl::handleGetMain(const Http::Request &req, std::string_view subURI)
 {
-  if(req.uri().size() > 1)
+  if(!subURI.empty())
     return Http::Response(404);
 
   return makeRedirect("/page/0");
 }
 
-Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req)
+Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string_view subURI)
 {
-  auto pageNo = str2num<unsigned>(req.uri().substr(6));
+  auto pageNo = str2num<unsigned>(subURI);
 
   auto numPosts = numPosts_.load();
   auto numPages = numPosts ? (numPosts - 1) / c_pageSize + 1 : 1;
@@ -184,9 +185,9 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req)
       << hDump());
 }
 
-Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req)
+Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string_view subURI)
 {
-  auto filename = std::string(req.uri().substr(6));
+  auto filename = std::string(subURI);
 
   return Http::Response(200)
     .withHeader("content-type", "text/html")
@@ -197,8 +198,11 @@ Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req)
       << hDump());
 }
 
-Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req)
+Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req, std::string_view subURI)
 {
+  if(!subURI.empty())
+    return Http::Response(404);
+
   auto numPosts = numPosts_++;
 
   auto filename = std::to_string(numPosts);
@@ -210,14 +214,12 @@ Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req)
   return makeRedirect("/page/" + std::to_string(numPosts / c_pageSize) + "/#post" + filename);
 }
 
-ServerLoop::RequestHandler ImgBrd::Impl::makeHandler(Impl::Handler handler)
-{
-  return [this, handler](const Http::Request &req) { return ((*this).*handler)(req); };
-}
-
 void ImgBrd::Impl::setHandler(Http::Method method, std::string uri, Handler handler)
 {
-  serverLoop_.setHandler(method, std::move(uri), makeHandler(handler));
+  auto lenBaseURI = uri.size();
+  serverLoop_.setHandler(method, std::move(uri),
+    [this, handler, lenBaseURI](const auto &req) {
+      return ((*this).*handler)(req, req.uri().substr(lenBaseURI)); });
 }
 
 ImgBrd::ImgBrd()
