@@ -69,11 +69,11 @@ Num str2num(std::string_view str)
   return num;
 }
 
-template<typename Path>
-std::string getFileAsString(Path&& path)
+template<class Res, typename Path>
+Res getFileAs(Path&& path)
 {
   auto file = std::ifstream(std::forward<Path>(path));
-  return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+  return Res(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
 #endif

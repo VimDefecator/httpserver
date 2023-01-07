@@ -61,7 +61,7 @@ namespace
     return
       hTag("p")
       << (hTag("h3") << hText(filename))
-      << (hTag("pre") << hText(getFileAsString("posts/" + filename)));
+      << (hTag("pre") << hText(getFileAs<std::string>("posts/" + filename)));
   }
 
   Html makePage(Html body)
@@ -80,7 +80,10 @@ namespace
 
   Html makeHeading()
   {
-    return hTag("h1") << hText("Добро пожаловать. Снова.");
+    return hMany()
+      << hTag("img").wAttr("src", "/pics/main.jpg").wNoClose()
+      << hTag("br").wNoClose()
+      << (hTag("h1") << hText("Добро пожаловать. Снова."));
   }
 
   Html makePageLink(unsigned pageNo, std::string text)
@@ -179,6 +182,7 @@ struct ImgBrd::Impl
   Http::Response handleGetMain(const Http::Request &req, std::string_view subURI);
   Http::Response handleGetPage(const Http::Request &req, std::string_view subURI);
   Http::Response handleGetPost(const Http::Request &req, std::string_view subURI);
+  Http::Response handleGetPic(const Http::Request &req, std::string_view subURI);
   Http::Response handlePostPost(const Http::Request &req, std::string_view subURI);
 
   using Handler = Http::Response (Impl::*)(const Http::Request &, std::string_view);
@@ -251,6 +255,15 @@ Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string
     makeContent200);
 }
 
+Http::Response ImgBrd::Impl::handleGetPic(const Http::Request &req, std::string_view subURI)
+{
+  auto filename = std::string(subURI);
+
+  return Http::Response(200)
+    .withHeader("content-type", "image/jpeg")
+    .withBody(getFileAs<std::vector<char>>("pics/" + filename));
+}
+
 Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req, std::string_view subURI)
 {
   if(!subURI.empty())
@@ -320,6 +333,7 @@ void ImgBrd::init(int argc, char **argv)
     impl_->setHandler(M::Get , "/"     , &Impl::handleGetMain);
     impl_->setHandler(M::Get , "/page/", &Impl::handleGetPage);
     impl_->setHandler(M::Get , "/post/", &Impl::handleGetPost);
+    impl_->setHandler(M::Get , "/pics/", &Impl::handleGetPic);
     impl_->setHandler(M::Post, "/post" , &Impl::handlePostPost);
   }
 
