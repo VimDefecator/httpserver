@@ -52,7 +52,8 @@ namespace
       << (hTag("h3") << hText(filename))
       << (hTag("pre")
         << hText(buf)
-        << (tooBig ? (hTag("a").wAttr("href", "/post/" + filename) << hText("MORE")) : hNop()));
+        << hIf(tooBig, [&](auto &h) {
+          h << (hTag("a").wAttr("href", "/post/" + filename) << hText("MORE")); }));
   }
 
   Html makePostFromFile(const std::string &filename)
@@ -63,20 +64,23 @@ namespace
       << (hTag("pre") << hText(getFileAsString("posts/" + filename)));
   }
 
-  Html makePostingForm()
+  Html makePage(Html body)
   {
     return
-      hTag("form")
-      .wAttr("method", "post")
-      .wAttr("enctype", "text/plain")
-      .wAttr("action", "/post")
-      << (hTag("p")
-        << hTag("textarea")
-          .wAttr("name", "content")
-          .wAttr("rows", "6")
-          .wAttr("cols", "60"))
-      << (hTag("p")
-        << (hTag("button") << hText("Отправить")));
+      hTag("html")
+      .wAttr("lang", "en")
+      << (hTag("head")
+        << hTag("meta")
+          .wAttr("charset", "utf-8")
+        << (hTag("title")
+          << hText("Двач 0.1")))
+      << (hTag("body")
+        << body.move());
+  }
+
+  Html makeHeading()
+  {
+    return hTag("h1") << hText("Добро пожаловать. Снова.");
   }
 
   Html makePageLink(unsigned pageNo, std::string text)
@@ -116,16 +120,34 @@ namespace
       << makePageLink(numPages - 1);
   }
 
-  Html makePage(Html body)
+  Html makePosts(unsigned pageNo, unsigned numPosts)
+  {
+    return hMany() << [&](auto &h)
+    {
+      auto fromPostNo = pageNo * c_pageSize;
+      auto toPostNo = std::min(numPosts, fromPostNo + c_pageSize);
+      for(unsigned postNo = fromPostNo; postNo < toPostNo; ++postNo)
+      {
+        auto filename = std::to_string(postNo);
+        h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);
+      }
+    };
+  }
+
+  Html makePostingForm()
   {
     return
-      hTag("html").wAttr("lang", "en")
-      << (hTag("head")
-        << (hTag("meta")
-          << hAttr("charset", "utf-8"))
-        << (hTag("title")
-          << hText("Двач 0.1")))
-      << body.move();
+      hTag("form")
+      .wAttr("method", "post")
+      .wAttr("enctype", "text/plain")
+      .wAttr("action", "/post")
+      << (hTag("p")
+        << hTag("textarea")
+          .wAttr("name", "content")
+          .wAttr("rows", "6")
+          .wAttr("cols", "60"))
+      << (hTag("p")
+        << (hTag("button") << hText("Отправить")));
   }
 
   Http::Response makeRedirect(std::string_view uri)
@@ -207,16 +229,10 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
   return useCache<Http::Response>(req.uri(),
     [&] {
       return makePage(
-        hTag("body")
-        << (hTag("h1")
-          << hText("Добро пожаловать. Снова."))
+        hMany()
+        << makeHeading()
         << makePaginationPanel(pageNo, numPages)
-        << [&](auto &h) {
-          auto fromPostNo = pageNo * c_pageSize;
-          auto toPostNo = std::min(numPosts, fromPostNo + c_pageSize);
-          for(unsigned postNo = fromPostNo; postNo < toPostNo; ++postNo) {
-            auto filename = std::to_string(postNo);
-            h << makePostFromFileTrunc(filename).wAttr("id", "post" + filename);}}
+        << makePosts(pageNo, numPosts)
         << makePaginationPanel(pageNo, numPages)
         << makePostingForm()
       ).dump();
@@ -230,10 +246,7 @@ Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string
 
   return useCache<Http::Response>(req.uri(),
     [&] {
-      return makePage(
-        hTag("body")
-        << makePostFromFile(filename)
-      ).dump();
+      return makePage(makePostFromFile(filename)).dump();
     },
     makeContent200);
 }

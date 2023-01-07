@@ -1,6 +1,7 @@
 #include "html.hh"
 #include <iterator>
 #include <sstream>
+#include <iostream>
 
 namespace
 {
@@ -23,16 +24,19 @@ namespace
 
 struct Html::Impl
 {
-  enum class Type { Tag, Text };
+  enum class Type { Many, Tag, Text, Raw };
   enum class TagType { Pair, SelfClose, NoClose };
 
-  void dump(std::ostream &out, int indSize)
+  void dump(std::ostream &out)
   {
-    auto ind = std::string(indSize, ' ');
-
-    if(type_ == Type::Tag)
+    if(type_ == Type::Many)
     {
-      out << ind << '<' << name_;
+      for(auto &child : children_)
+        child.impl_->dump(out);
+    }
+    else if(type_ == Type::Tag)
+    {
+      out << '<' << str_;
       for(auto &[name, value] : attribs_)
       {
         out << ' ' << name;
@@ -53,12 +57,10 @@ struct Html::Impl
           out << '\n';
 
           for(auto &child : children_)
-            child.impl_->dump(out, indSize + 2);
-
-          out << ind;
+            child.impl_->dump(out);
         }
 
-        out << "</" << name_ << ">\n";
+        out << "</" << str_ << ">\n";
       }
       else if(tagType_ == TagType::SelfClose)
       {
@@ -69,25 +71,28 @@ struct Html::Impl
         out << ">\n";
       }
     }
+    else if(type_ == Type::Text)
+    {
+      escapeStr(out, str_);
+      out << '\n';
+    }
     else
     {
-      escapeStr(out, text_);
-      out << '\n';
+      out << str_ << '\n';
     }
   }
 
-  Type type_;
+  Type type_ = Type::Many;
   TagType tagType_ = TagType::Pair;
 
-  std::string name_;
+  std::string str_;
   std::vector<std::pair<std::string, std::string>> attribs_;
   std::vector<Html> children_;
-
-  std::string text_;
 };
 
 Html::Html()
 {
+  impl_ = std::make_unique<Impl>();
 }
 
 Html::~Html()
@@ -96,7 +101,7 @@ Html::~Html()
 
 Html::Html(Html &&other)
 {
-  *this = std::move(other);
+  impl_ = std::move(other.impl_);
 }
 
 Html &Html::operator=(Html &&other)
@@ -107,35 +112,31 @@ Html &Html::operator=(Html &&other)
 
 Html::Html(const Html &other)
 {
-  *this = other;
+  impl_ = std::make_unique<Impl>(*other.impl_);
 }
 
 Html &Html::operator=(const Html &other)
 {
-  if(!impl_)
-    impl_ = std::make_unique<Impl>();
-
   *impl_ = *other.impl_;
-
   return *this;
+}
+
+void Html::setRawHtml(std::string raw)
+{
+  impl_->type_ = Impl::Type::Raw;
+  impl_->str_ = std::move(raw);
 }
 
 void Html::setText(std::string text)
 {
-  if(!impl_)
-    impl_ = std::make_unique<Impl>();
-
   impl_->type_ = Impl::Type::Text;
-  impl_->text_ = std::move(text);
+  impl_->str_ = std::move(text);
 }
 
 void Html::setName(std::string name)
 {
-  if(!impl_)
-    impl_ = std::make_unique<Impl>();
-
   impl_->type_ = Impl::Type::Tag;
-  impl_->name_ = std::move(name);
+  impl_->str_ = std::move(name);
 }
 
 void Html::addAttr(std::string name, std::string value)
@@ -145,13 +146,7 @@ void Html::addAttr(std::string name, std::string value)
 
 void Html::addChild(Html child)
 {
-  if(child)
-    impl_->children_.push_back(std::move(child));
-}
-
-void Html::applyFn(std::function<void(Html&)> fn)
-{
-  fn(*this);
+  impl_->children_.emplace_back(std::move(child));
 }
 
 void Html::selfClose()
@@ -164,15 +159,10 @@ void Html::noClose()
   impl_->tagType_ = Impl::TagType::NoClose;
 }
 
-Html::operator bool()
-{
-  return bool(impl_);
-}
-
 std::string Html::dump()
 {
   std::stringstream ss;
   ss << "<!DOCTYPE html>\n";
-  impl_->dump(ss, 0);
+  impl_->dump(ss);
   return ss.str();
 }
