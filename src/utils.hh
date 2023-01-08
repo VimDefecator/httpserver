@@ -7,6 +7,7 @@
 #include <charconv>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <cstring>
 #include <errno.h>
 
@@ -70,10 +71,13 @@ Num str2num(std::string_view str)
 }
 
 template<class Res, typename Path>
-Res getFileAs(Path&& path)
+std::optional<Res> getFileAs(Path&& path)
 {
-  auto file = std::ifstream(std::forward<Path>(path));
-  return Res(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+  if(auto file = std::ifstream(std::forward<Path>(path)))
+    return {Res(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>())};
+  else
+    return {};
+  
 }
 
 #endif

@@ -56,14 +56,6 @@ namespace
           h << (hTag("a").wAttr("href", "/post/" + filename) << hText("MORE")); }));
   }
 
-  Html makePostFromFile(const std::string &filename)
-  {
-    return
-      hTag("p")
-      << (hTag("h3") << hText(filename))
-      << (hTag("pre") << hText(getFileAs<std::string>("posts/" + filename)));
-  }
-
   Html makePage(Html body)
   {
     return
@@ -227,41 +219,49 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
   auto numPosts = numPosts_.load();
   auto numPages = numPosts ? (numPosts - 1) / c_pageSize + 1 : 1;
 
-  if(pageNo > numPages)
+  if(pageNo < numPages)
+    return useCache<Http::Response>(req.uri(),
+      [&] {
+        return makePage(
+          hMany()
+          << makeHeading()
+          << makePaginationPanel(pageNo, numPages)
+          << makePosts(pageNo, numPosts)
+          << makePaginationPanel(pageNo, numPages)
+          << makePostingForm()
+        ).dump();
+      },
+      makeContent200);
+  else
     return Http::Response(404);
-
-  return useCache<Http::Response>(req.uri(),
-    [&] {
-      return makePage(
-        hMany()
-        << makeHeading()
-        << makePaginationPanel(pageNo, numPages)
-        << makePosts(pageNo, numPosts)
-        << makePaginationPanel(pageNo, numPages)
-        << makePostingForm()
-      ).dump();
-    },
-    makeContent200);
 }
 
 Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string_view subURI)
 {
   auto filename = std::string(subURI);
 
-  return useCache<Http::Response>(req.uri(),
-    [&] {
-      return makePage(makePostFromFile(filename)).dump();
-    },
-    makeContent200);
+  if(auto content = getFileAs<std::string>("posts/" + filename))
+    return Http::Response(200)
+      .withHeader("content-type", "text/html")
+      .withBody(
+        makePage(
+          hTag("p")
+          << (hTag("h3") << hText(filename))
+          << (hTag("pre") << hText(*content))).dump());
+  else
+    return Http::Response(404);
 }
 
 Http::Response ImgBrd::Impl::handleGetPic(const Http::Request &req, std::string_view subURI)
 {
   auto filename = std::string(subURI);
 
-  return Http::Response(200)
-    .withHeader("content-type", "image/jpeg")
-    .withBody(getFileAs<std::vector<char>>("pics/" + filename));
+  if(auto content = getFileAs<std::vector<char>>("pics/" + filename))
+    return Http::Response(200)
+      .withHeader("content-type", "image/jpeg")
+      .withBody(std::move(*content));
+  else
+    return Http::Response(404);
 }
 
 Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req, std::string_view subURI)
