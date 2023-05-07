@@ -1,5 +1,4 @@
-#ifndef HTMLUTILS_HH
-#define HTMLUTILS_HH
+#pragma once
 
 #include "html.hh"
 
@@ -41,4 +40,3 @@ namespace html
   inline Html::Nop hNop() { return {}; }
 }
 
-#endif

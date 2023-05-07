@@ -1,5 +1,4 @@
-#ifndef SERVERLOOP_HH
-#define SERVERLOOP_HH
+#pragma once
 
 #include "http.hh"
 #include <functional>
@@ -21,4 +20,3 @@ private:
   std::map<Http::Method, std::map<std::string, RequestHandler, std::less<>>> method2uri2handler_;
 };
 
-#endif

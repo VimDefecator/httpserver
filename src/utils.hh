@@ -4,7 +4,6 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
-#include <charconv>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -62,14 +61,6 @@ private:
   std::vector<char> &vec_;
 };
 
-template<typename Num>
-Num str2num(std::string_view str)
-{
-  Num num;
-  std::from_chars(str.begin(), str.end(), num);
-  return num;
-}
-
 template<class Res, typename Path>
 std::optional<Res> getFileAs(Path&& path)
 {
@@ -79,5 +70,7 @@ std::optional<Res> getFileAs(Path&& path)
     return {};
   
 }
+
+#include "str2num.hcc"
 
 #endif

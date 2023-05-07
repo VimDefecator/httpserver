@@ -1,7 +1,8 @@
-#ifndef IMGBRD_HH
-#define IMGBRD_HH
+#pragma once
 
 #include <memory>
+
+class Args;
 
 class ImgBrd
 {
@@ -9,7 +10,7 @@ public:
   ImgBrd();
   ~ImgBrd();
 
-  void init(int argc = 0, char **argv = nullptr);
+  void init(const Args &args);
   void exec();
 
 private:
@@ -17,4 +18,3 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
-#endif

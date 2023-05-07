@@ -1,5 +1,4 @@
-#ifndef CLASSUTILS_HH
-#define CLASSUTILS_HH
+#pragma once
 
 template<class Derived>
 class EnableMoveGetter
@@ -50,4 +49,3 @@ public:
   void methodName(type) { methodName(); }                               \
   CHAIN_METHOD_FOR_TYPE(chainMethodName, methodName, type)
 
-#endif

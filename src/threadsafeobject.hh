@@ -1,5 +1,4 @@
-#ifndef THREADSAFEOBJECT_HH
-#define THREADSAFEOBJECT_HH
+#pragma once
 
 #include <mutex>
 #include <shared_mutex>
@@ -65,4 +64,3 @@ private:
   std::shared_mutex mx_;
 };
 
-#endif

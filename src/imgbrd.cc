@@ -4,6 +4,7 @@
 #include "htmlutils.hh"
 #include "utils.hh"
 #include "threadsafeobject.hh"
+#include "args.hh"
 
 #include <atomic>
 #include <algorithm>
@@ -162,7 +163,7 @@ namespace
 struct ImgBrd::Impl
 {
   ServerLoop serverLoop_;
-  int port_;
+  int port_ = 80;
   std::atomic<unsigned> numPosts_;
   ThreadSafeObject<std::map<std::string, std::string, std::less<>>> cache_;
 
@@ -318,11 +319,11 @@ ImgBrd::~ImgBrd()
 {
 }
 
-void ImgBrd::init(int argc, char **argv)
+void ImgBrd::init(const Args &args)
 {
   impl_.reset(new Impl);
 
-  impl_->port_ = argc >= 2 ? atoi(argv[1]) : 80;
+  impl_->port_ = args.getIntO("port").value_or(80);
 
   impl_->numPosts_ = std::count_if(fs::directory_iterator("posts"),
                                    fs::directory_iterator(),

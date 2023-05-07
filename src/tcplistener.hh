@@ -1,5 +1,4 @@
-#ifndef TCPLISTENER_HH
-#define TCPLISTENER_HH
+#pragma once
 
 #include <memory>
 #include <string>
@@ -46,4 +45,3 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
-#endif

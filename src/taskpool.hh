@@ -1,5 +1,4 @@
-#ifndef TASKPOOL_HH
-#define TASKPOOL_HH
+#pragma once
 
 #include <memory>
 #include <functional>
@@ -17,4 +16,3 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
-#endif

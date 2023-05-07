@@ -1,5 +1,4 @@
-#ifndef HTTP_HH
-#define HTTP_HH
+#pragma once
 
 #include <string>
 #include <vector>
@@ -88,4 +87,3 @@ namespace Http
   };
 }
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef HTML_HH
-#define HTML_HH
+#pragma once
 
 #include <vector>
 #include <string>
@@ -74,4 +73,3 @@ private:
   std::unique_ptr<Impl> impl_;
 };
 
-#endif
