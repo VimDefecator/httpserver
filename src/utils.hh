@@ -1,5 +1,4 @@
-#ifndef UTILS_HH
-#define UTILS_HH
+#pragma once
 
 #include <stdexcept>
 #include <vector>
@@ -72,5 +71,3 @@ std::optional<Res> getFileAs(Path&& path)
 }
 
 #include "str2num.hcc"
-
-#endif
