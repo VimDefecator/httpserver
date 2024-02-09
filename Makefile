@@ -1,27 +1,25 @@
 CXX := clang++
-CXXFLAGS := -std=c++20 `sdl2-config --cflags`
+CXXFLAGS := -std=c++20
 CPPFLAGS := -MMD -MP
-LDFLAGS := -lpthread `sdl2-config --libs`
+LDFLAGS := -lpthread
 
 define TARGET_template =
  SRCS_$(1) := $$(foreach name,$(2),src/$$(name).cc)
  OBJS_$(1) := $$(foreach name,$(2),build/$$(name).o)
- $(1): $$(OBJS_$(1))
-	$(CXX) $(LDFLAGS) -o $(1) $$(OBJS_$(1))
+ build/$(1): $$(OBJS_$(1))
+	$(CXX) $(LDFLAGS) -o build/$(1) $$(OBJS_$(1))
 endef
 
 ALLUNITS := test imgbrd serverloop tcplistener taskpool http html args
-ALLOBJS := $(ALLUNITS:%=build/%.o)
-ALLDEPS := $(ALLUNITS:%=build/%.d)
 
 TARGETS := test
 UNITS_test := test imgbrd serverloop tcplistener taskpool http html args
 
-all: $(TARGETS)
+all: $(TARGETS:%=build/%)
 
 $(foreach target,$(TARGETS),$(eval $(call TARGET_template,$(target),$(UNITS_$(target)))))
 
-$(ALLOBJS): build/%.o: src/%.cc build/.dir
+$(ALLUNITS:%=build/%.o): build/%.o: src/%.cc build/.dir
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
 
 build/.dir:
@@ -32,4 +30,4 @@ build/.dir:
 clean:
 	rm -rf build
 
--include $(ALLDEPS)
+-include $(ALLUNITS:%=build/%.d)
