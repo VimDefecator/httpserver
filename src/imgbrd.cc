@@ -75,6 +75,11 @@ namespace
     return hTag("h1") << hText("Добро пожаловать. Снова.");
   }
 
+  Html makeHeading404()
+  {
+    return hTag("h1") << hText("Страницы не существует :(");
+  }
+
   Html makePageLink(unsigned pageNo, std::string text)
   {
     return
@@ -150,9 +155,9 @@ namespace
       .withHeader("location", uri);
   }
 
-  Http::Response makeContent200(std::string_view content)
+  Http::Response makeContent(int code, std::string_view content)
   {
-    return Http::Response(200)
+    return Http::Response(code)
       .withHeader("content-type", "text/html")
       .withBody(content);
   }
@@ -190,7 +195,7 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
   auto numPages = numPosts ? (numPosts - 1) / c_pageSize + 1 : 1;
 
   if(pageNo < numPages)
-    return makeContent200(
+    return makeContent(200,
       makePage(
         hMany()
         << makeHeading()
@@ -201,7 +206,12 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
       ).dump()
     );
   else
-    return Http::Response(404);
+    return makeContent(404,
+      makePage(
+        hMany()
+        << makeHeading404()
+      ).dump()
+    );
 }
 
 Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string_view subURI)
