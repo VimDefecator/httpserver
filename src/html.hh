@@ -4,7 +4,7 @@
 #include <string>
 #include <memory>
 #include <functional>
-#include "classutils.hh"
+#include "common/classutils.hh"
 
 class Html : public EnableMoveGetter<Html>
 {

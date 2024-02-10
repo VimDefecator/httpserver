@@ -1,5 +1,5 @@
 #include "imgbrd.hh"
-#include "args.hh"
+#include "common/args.hh"
 
 int main(int argc, char **argv)
 {

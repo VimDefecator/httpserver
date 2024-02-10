@@ -8,6 +8,7 @@
 #include <optional>
 #include <cstring>
 #include <errno.h>
+#include "common/str2num.hh"
 
 template<class T>
 void zfill(T *dst)
@@ -68,5 +69,3 @@ std::optional<Res> getFileAs(Path&& path)
   else
     return {};
 }
-
-#include "str2num.hcc"

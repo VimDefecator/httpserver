@@ -18,7 +18,7 @@ $(ALLUNITS:%=build/%.o): build/%.o: src/%.cc build/.dir
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
 
 build/.dir:
-	mkdir -p build
+	mkdir -p $(ALLDIRS:%=build/%)
 	touch build/.dir
 
 .PHONY: clean
