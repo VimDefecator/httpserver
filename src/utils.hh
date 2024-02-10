@@ -67,7 +67,6 @@ std::optional<Res> getFileAs(Path&& path)
     return {Res(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>())};
   else
     return {};
-  
 }
 
 #include "str2num.hcc"

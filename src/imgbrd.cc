@@ -95,21 +95,23 @@ namespace
         ? makePageLink(pageNo - 1, "<-пред ")
         : hText("<-пред "))
       << hText("|")
-      << (pageNo < numPages - 1
+      << (pageNo + 1 < numPages
         ? makePageLink(pageNo + 1, " след->")
         : hText(" след->"))
       << hTag("br").wNoClose()
-      << makePageLink(0)
       << [&](auto &h) {
-        auto fromPageNo = pageNo > 4 ? pageNo - 3 : 1;
-        auto toPageNo = std::min(pageNo + 3, numPages - 2);
-        if(fromPageNo > 1)
-          h << hText("...");
-        for(auto no = fromPageNo; no <= toPageNo; ++no)
-          h << makePageLink(no);
-        if(toPageNo < numPages - 2)
-          h << hText("...");}
-      << makePageLink(numPages - 1);
+        h << makePageLink(0);
+        if(numPages > 1) {
+          if(numPages > 2) {
+            unsigned pageFrom = pageNo > 4 ? pageNo - 3 : 1;
+            unsigned pageTo = std::min(pageNo + 3, numPages - 2);
+            if(pageFrom > 1)
+              h << hText("...");
+            for(auto no = pageFrom; no <= pageTo; ++no)
+              h << makePageLink(no);
+            if(pageTo < numPages - 2)
+              h << hText("...");}
+          h << makePageLink(numPages - 1);}};
   }
 
   Html makePosts(unsigned pageNo, unsigned numPosts)
