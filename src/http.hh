@@ -71,19 +71,26 @@ namespace Http
 
     void addHeader(std::string_view name, std::string_view value);
 
+    void setBody(std::string body);
     void setBody(std::vector<char> body);
-    void setBody(std::string_view body);
 
-    CHAIN_METHOD(withHeader, addHeader);
-    CHAIN_METHOD(withBody, setBody);
+    void emplaceBody(std::string_view body);
+
+    CHAIN_METHOD(wAddHeader, addHeader);
+    CHAIN_METHOD(wSetBody, setBody);
+    CHAIN_METHOD(wEmplaceBody, emplaceBody);
 
     void send(int fd);
+    void send(int fd, std::string_view body);
+    void send(int fd, const void *bodyData, size_t bodySize);
 
   private:
-    void addContentLengthHeader();
+    std::string headStr_;
+    std::string bodyStr_;
+    std::vector<char> bodyVec_;
 
-    std::vector<char> headBuf_;
-    std::vector<char> bodyBuf_;
+    enum class BodyType { Vec, Str };
+    BodyType bodyType_ = BodyType::Vec;
   };
 }
 

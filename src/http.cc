@@ -218,39 +218,62 @@ namespace
 
 Response::Response(int statusCode)
 {
-  AppendToCharVec(headBuf_).app("HTTP/1.1 ")
-                           .app(std::to_string(statusCode))
-                           .app(' ')
-                           .app(statusCode2reasonPhrase(statusCode))
-                           .app("\r\n");
+  headStr_ += "HTTP/1.1 ";
+  headStr_ += std::to_string(statusCode);
+  headStr_ += " ";
+  headStr_ += statusCode2reasonPhrase(statusCode);
+  headStr_ += "\r\n";
 }
 
 void Response::addHeader(std::string_view name, std::string_view value)
 {
-  AppendToCharVec(headBuf_).app(name).app(": ").app(value).app("\r\n");
+  headStr_ += name;
+  headStr_ += ": ";
+  headStr_ += value;
+  headStr_ += "\r\n";
+}
+
+void Response::setBody(std::string body)
+{
+  addHeader("content-length", std::to_string(body.size()));
+  bodyStr_ = std::move(body);
+  bodyType_ = BodyType::Str;
 }
 
 void Response::setBody(std::vector<char> body)
 {
-  bodyBuf_ = std::move(body);
-  addContentLengthHeader();
+  addHeader("content-length", std::to_string(body.size()));
+  bodyVec_ = std::move(body);
+  bodyType_ = BodyType::Vec;
 }
 
-void Response::setBody(std::string_view body)
+void Response::emplaceBody(std::string_view body)
 {
-  bodyBuf_ = std::vector(body.begin(), body.end());
-  addContentLengthHeader();
-}
-
-void Response::addContentLengthHeader()
-{
-  addHeader("content-length", std::to_string(bodyBuf_.size()));
+  setBody(std::string(body));
 }
 
 void Response::send(int fd)
 {
-  AppendToCharVec(headBuf_).app("\r\n");
+  switch(bodyType_)
+  {
+    case BodyType::Str:
+      send(fd, bodyStr_.data(), bodyStr_.size());
+    break;
 
-  write(fd, headBuf_.data(), headBuf_.size());
-  write(fd, bodyBuf_.data(), bodyBuf_.size());
+    case BodyType::Vec:
+      send(fd, bodyVec_.data(), bodyVec_.size());
+    break;
+  }
+}
+
+void Response::send(int fd, std::string_view body)
+{
+  send(fd, body.data(), body.size());
+}
+
+void Response::send(int fd, const void *bodyData, size_t bodySize)
+{
+  write(fd, "\r\n", 2);
+  write(fd, headStr_.data(), headStr_.size());
+  write(fd, bodyData, bodySize);
 }

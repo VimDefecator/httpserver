@@ -31,36 +31,6 @@ inline std::string_view interval2strview(const std::vector<char> &vec, size_t be
   return std::string_view(vec.data(), vec.size()).substr(begPos, endPos - begPos);
 }
 
-class AppendToCharVec
-{
-public:
-  AppendToCharVec(std::vector<char> &vec)
-    : vec_(vec)
-  {
-  }
-
-  AppendToCharVec &app(char ch)
-  {
-    vec_.push_back(ch);
-    return *this;
-  }
-
-  AppendToCharVec &app(std::string_view str)
-  {
-    vec_.insert(vec_.end(), str.begin(), str.end());
-    return *this;
-  }
-
-  AppendToCharVec &app(const std::vector<char> &vec)
-  {
-    vec_.insert(vec_.end(), vec.begin(), vec.end());
-    return *this;
-  }
-
-private:
-  std::vector<char> &vec_;
-};
-
 template<class Res, typename Path>
 std::optional<Res> getFileAs(Path&& path)
 {
