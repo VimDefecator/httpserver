@@ -39,8 +39,11 @@ namespace Http
 
     std::optional<std::string_view> findHeader(std::string_view name) const;
 
-    std::string toString() const {
-      return std::string(headBuf_.data(), headBuf_.size()) + std::string(bodyBuf_.data(), bodyBuf_.size());
+    std::string_view dumpHead() const {
+      return std::string_view(headBuf_.data(), headBuf_.size());
+    }
+    std::string_view dumpBody() const {
+      return std::string_view(bodyBuf_.data(), bodyBuf_.size());
     }
 
     void recieve(int fd);
