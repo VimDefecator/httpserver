@@ -49,9 +49,6 @@ namespace Http
     void recieve(int fd);
 
   private:
-    void processHeadBuf();
-
-  private:
     std::vector<char> headBuf_;
     std::vector<char> bodyBuf_;
 

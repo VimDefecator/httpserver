@@ -22,6 +22,30 @@ namespace
     throw std::runtime_error("Unrecognized method: " + std::string(str));
   }
 
+  template<class Fn1, class Fn2>
+  void processHeadBuf(std::vector<char> &buf, Fn1 &&onFirstLine, Fn2 &&onHeaderLine)
+  {
+    auto head = std::string_view(buf.data(), buf.size());
+
+    size_t begLinePos, endLinePos;
+
+    begLinePos = 0;
+    endLinePos = head.find("\r\n");
+
+    onFirstLine(begLinePos, endLinePos);
+
+    while(true)
+    {
+      begLinePos = endLinePos + 2;
+      endLinePos = head.find("\r\n", begLinePos);
+
+      if(endLinePos == std::string_view::npos || endLinePos == begLinePos)
+        break;
+
+      onHeaderLine(begLinePos, endLinePos);
+    }
+  }
+
   std::pair<Method, std::string_view> processRequestLine(std::vector<char> &buf, size_t from, size_t to)
   {
     auto line = std::string_view(&buf[from], to - from);
@@ -117,7 +141,13 @@ void Request::recieve(int fd)
 
   headBuf_.resize(endHeadersPos);
 
-  processHeadBuf();
+  processHeadBuf(headBuf_,
+    [&](size_t from, size_t to){
+      std::tie(method_, uri_) = processRequestLine(headBuf_, from, to);
+    },
+    [&](size_t from, size_t to){
+      headers_.push_back(processHeaderLine(headBuf_, from, to));
+    });
 
   if(auto contentLength = findHeader("content-length"))
   {
@@ -131,29 +161,6 @@ void Request::recieve(int fd)
     {
       pos += throwOnErr(read(fd, &bodyBuf_[pos], len - pos));
     }
-  }
-}
-
-void Request::processHeadBuf()
-{
-  auto head = std::string_view(headBuf_.data(), headBuf_.size());
-
-  size_t lineBegPos, lineEndPos;
-
-  lineBegPos = 0;
-  lineEndPos = head.find("\r\n");
-
-  std::tie(method_, uri_) = processRequestLine(headBuf_, lineBegPos, lineEndPos);
-
-  while(true)
-  {
-    lineBegPos = lineEndPos + 2;
-    lineEndPos = head.find("\r\n", lineBegPos);
-
-    if(lineEndPos == std::string_view::npos || lineEndPos == lineBegPos)
-      break;
-
-    headers_.push_back(processHeaderLine(headBuf_, lineBegPos, lineEndPos));
   }
 }
 
