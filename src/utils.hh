@@ -25,11 +25,6 @@ Ret throwOnErr(Ret ret)
   return ret;
 }
 
-inline std::string_view interval2strview(const std::vector<char> &vec, size_t begPos, size_t endPos)
-{
-  return std::string_view(vec.data(), vec.size()).substr(begPos, endPos - begPos);
-}
-
 template<class Res, typename Path>
 std::optional<Res> getFileAs(Path&& path)
 {

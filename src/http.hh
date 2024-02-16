@@ -25,10 +25,10 @@ namespace Http
       return method_;
     };
     std::string_view uri() const {
-      return headRelStrView2strView(uri_);
+      return uri_;
     }
     const std::vector<std::pair<std::string_view, std::string_view>> &headers() const {
-      return headersStrViews_;
+      return headers_;
     }
     const std::vector<char> &body() const {
       return bodyBuf_;
@@ -47,21 +47,14 @@ namespace Http
 
   private:
     void processHeadBuf();
-    void processRequestLine(size_t absBegPos, size_t absEndPos);
-    void processHeaderLine(size_t absBegPos, size_t absEndPos);
-    void generateHeadersStrViews();
 
   private:
-    using RelStrView = std::pair<size_t, size_t>;
-    std::string_view headRelStrView2strView(RelStrView rsv) const;
-
     std::vector<char> headBuf_;
     std::vector<char> bodyBuf_;
 
     Method method_;
-    RelStrView uri_;
-    std::vector<std::pair<RelStrView, RelStrView>> headers_;
-    std::vector<std::pair<std::string_view, std::string_view>> headersStrViews_;
+    std::string_view uri_;
+    std::vector<std::pair<std::string_view, std::string_view>> headers_;
   };
 
   class Response

@@ -6,6 +6,57 @@
 
 using namespace Http;
 
+namespace
+{
+  Method methodStr2enum(std::string_view str)
+  {
+    if(str == "OPTIONS") return Method::Options;
+    if(str == "GET")     return Method::Get;
+    if(str == "HEAD")    return Method::Head;
+    if(str == "POST")    return Method::Post;
+    if(str == "PUT")     return Method::Put;
+    if(str == "DELETE")  return Method::Delete;
+    if(str == "TRACE")   return Method::Trace;
+    if(str == "CONNECT") return Method::Connect;
+
+    throw std::runtime_error("Unrecognized method: " + std::string(str));
+  }
+
+  std::pair<Method, std::string_view> processRequestLine(std::vector<char> &buf, size_t from, size_t to)
+  {
+    auto line = std::string_view(&buf[from], to - from);
+
+    auto endMethodPos = line.find(' ');
+    auto begUriPos = endMethodPos + 1;
+    auto endUriPos = line.find(' ', begUriPos);
+
+    return {methodStr2enum(line.substr(0, endMethodPos)),
+            line.substr(begUriPos, endUriPos - begUriPos)};
+  }
+  
+  std::pair<std::string_view, std::string_view> processHeaderLine(std::vector<char> &buf, size_t from, size_t to)
+  {
+    auto line = std::string_view(&buf[from], to - from);
+  
+    auto endNamePos = line.find_first_of(" \t\r\n:");
+    auto colPos = line.find(':', endNamePos);
+    auto valPos = line.find_first_not_of(" \t\r\n", colPos + 1);
+
+    for(auto i = from; i < from + endNamePos; ++i)
+      buf[i] = tolower(buf[i]);
+
+    return {line.substr(0, endNamePos),
+            line.substr(valPos)};
+  }
+
+  std::string_view migrateStrView(std::string_view oldStrView,
+                                  const std::vector<char> &oldBuf,
+                                  const std::vector<char> &newBuf)
+  {
+    return std::string_view(&newBuf[std::distance(oldBuf.data(), oldStrView.data())], oldStrView.size());
+  }
+}
+
 Request::Request(const Request &r)
 {
   *this = r;
@@ -16,16 +67,16 @@ Request &Request::operator=(const Request &r)
   headBuf_ = r.headBuf_;
   bodyBuf_ = r.bodyBuf_;
   method_ = r.method_;
-  uri_ = r.uri_;
-  headers_ = r.headers_;
-  generateHeadersStrViews();
+  uri_ = migrateStrView(r.uri_, r.headBuf_, headBuf_);
+  for(auto [hName, hValue] : r.headers_)
+    headers_.emplace_back(migrateStrView(hName, r.headBuf_, headBuf_), migrateStrView(hValue, r.headBuf_, headBuf_));
 
   return *this;
 }
 
 std::optional<std::string_view> Request::findHeader(std::string_view name) const
 {
-  for(auto [hName, value] : headersStrViews_)
+  for(auto [hName, value] : headers_)
     if(hName == name)
       return {value};
 
@@ -91,7 +142,8 @@ void Request::processHeadBuf()
 
   lineBegPos = 0;
   lineEndPos = head.find("\r\n");
-  processRequestLine(lineBegPos, lineEndPos);
+
+  std::tie(method_, uri_) = processRequestLine(headBuf_, lineBegPos, lineEndPos);
 
   while(true)
   {
@@ -101,64 +153,8 @@ void Request::processHeadBuf()
     if(lineEndPos == std::string_view::npos || lineEndPos == lineBegPos)
       break;
 
-    processHeaderLine(lineBegPos, lineEndPos);
+    headers_.push_back(processHeaderLine(headBuf_, lineBegPos, lineEndPos));
   }
-
-  generateHeadersStrViews();
-}
-
-namespace
-{
-  Method methodStr2enum(std::string_view str)
-  {
-    if(str == "OPTIONS") return Method::Options;
-    if(str == "GET")     return Method::Get;
-    if(str == "HEAD")    return Method::Head;
-    if(str == "POST")    return Method::Post;
-    if(str == "PUT")     return Method::Put;
-    if(str == "DELETE")  return Method::Delete;
-    if(str == "TRACE")   return Method::Trace;
-    if(str == "CONNECT") return Method::Connect;
-
-    throw std::runtime_error("Unrecognized method: " + std::string(str));
-  }
-}
-
-void Request::processRequestLine(size_t absBegPos, size_t absEndPos)
-{
-  auto line = interval2strview(headBuf_, absBegPos, absEndPos);
-
-  auto endMethodPos = line.find(' ');
-  auto endUriPos = line.find(' ', endMethodPos + 1);
-
-  method_ = methodStr2enum(line.substr(0, endMethodPos));
-  uri_ = RelStrView(absBegPos + endMethodPos + 1, endUriPos - endMethodPos - 1);
-}
-
-void Request::processHeaderLine(size_t absBegPos, size_t absEndPos)
-{
-  auto line = interval2strview(headBuf_, absBegPos, absEndPos);
-
-  auto endNamePos = line.find_first_of(" \t\r\n:");
-  auto colPos = line.find(':', endNamePos);
-  auto valPos = line.find_first_not_of(" \t\r\n", colPos + 1);
-
-  headers_.emplace_back(RelStrView(absBegPos, endNamePos),
-                        RelStrView(absBegPos + valPos, line.size() - valPos));
-
-  for(auto i = absBegPos; i < absBegPos + endNamePos; ++i)
-    headBuf_[i] = tolower(headBuf_[i]);
-}
-
-std::string_view Request::headRelStrView2strView(RelStrView rsv) const
-{
-  return interval2strview(headBuf_, rsv.first, rsv.first + rsv.second);
-}
-
-void Request::generateHeadersStrViews()
-{
-  for(auto [name, val] : headers_)
-    headersStrViews_.emplace_back(headRelStrView2strView(name), headRelStrView2strView(val));
 }
 
 namespace
