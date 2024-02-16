@@ -19,16 +19,12 @@ public:
     zfill(&addr_);
     addrLen_ = sizeof(addr_);
 
-    fd_ = throwOnErr(
-      accept(sock, (sockaddr *)&addr_, &addrLen_),
-      "accept connection");
+    fd_ = throwOnErr(accept(sock, (sockaddr *)&addr_, &addrLen_));
   }
 
   ~AcceptedConnImpl()
   {
-    throwOnErr(
-      close(fd_),
-      "close connection");
+    throwOnErr(close(fd_));
   }
 
   int fd() const { return fd_; }
@@ -77,17 +73,11 @@ public:
     addr_.sin_addr.s_addr = htonl(INADDR_ANY);
     addr_.sin_port = htons(port);
 
-    sock_ = throwOnErr(
-      socket(AF_INET, SOCK_STREAM, 0),
-      "create socket");
+    sock_ = throwOnErr(socket(AF_INET, SOCK_STREAM, 0));
 
-    throwOnErr(
-      bind(sock_, (sockaddr *)&addr_, sizeof(addr_)),
-      "bind sockaddr");
+    throwOnErr(bind(sock_, (sockaddr *)&addr_, sizeof(addr_)));
 
-    throwOnErr(
-      listen(sock_, 5),
-      "start listen");
+    throwOnErr(listen(sock_, 5));
   }
 
   AcceptedConn acceptConn() const

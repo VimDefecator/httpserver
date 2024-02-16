@@ -45,9 +45,7 @@ void Request::recieve(int fd)
     if(pos == headBuf_.size())
       headBuf_.resize(headBuf_.size() * 2);
 
-    auto nread = throwOnErr(
-      read(fd, &headBuf_[pos], headBuf_.size() - pos),
-      "read data");
+    auto nread = throwOnErr(read(fd, &headBuf_[pos], headBuf_.size() - pos));
 
     auto rnrnIt = std::search(pos < 3 ? headBuf_.begin() : headBuf_.begin() + pos - 3,
                               headBuf_.begin() + pos + nread,
@@ -80,9 +78,7 @@ void Request::recieve(int fd)
 
     while(pos < len)
     {
-      pos += throwOnErr(
-        read(fd, &bodyBuf_[pos], len - pos),
-        "read data");
+      pos += throwOnErr(read(fd, &bodyBuf_[pos], len - pos));
     }
   }
 }

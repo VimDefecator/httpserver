@@ -17,11 +17,10 @@ void zfill(T *dst)
 }
 
 template<typename Ret>
-Ret throwOnErr(Ret ret, std::string descr = "")
+Ret throwOnErr(Ret ret)
 {
   if(ret == -1)
-    throw std::runtime_error(
-      (!descr.empty() ? "Failed to " + descr + ". Error: " : std::string()) + strerror(errno));
+    throw std::runtime_error(strerror(errno));
 
   return ret;
 }
