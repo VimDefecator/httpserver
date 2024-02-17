@@ -21,7 +21,7 @@ void ServerLoop::exec(int port, int numThreads)
 
       try
       {
-        req.recieve(conn.fd());
+        req.receive(conn.fd());
 
         if(auto res = handleRequest(req))
           res->send(conn.fd());

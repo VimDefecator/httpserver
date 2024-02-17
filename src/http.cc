@@ -8,16 +8,38 @@ using namespace Http;
 
 namespace
 {
+  std::string_view methodEnum2str(Method method)
+  {
+    switch(method)
+    {
+      case Method::Options: return "OPTIONS";
+      case Method::Get:     return "GET";
+      case Method::Head:    return "HEAD";
+      case Method::Post:    return "POST";
+      case Method::Put:     return "PUT";
+      case Method::Delete:  return "DELETE";
+      case Method::Trace:   return "TRACE";
+      case Method::Connect: return "CONNECT";
+    }
+  }
+
   Method methodStr2enum(std::string_view str)
   {
-    if(str == "OPTIONS") return Method::Options;
-    if(str == "GET")     return Method::Get;
-    if(str == "HEAD")    return Method::Head;
-    if(str == "POST")    return Method::Post;
-    if(str == "PUT")     return Method::Put;
-    if(str == "DELETE")  return Method::Delete;
-    if(str == "TRACE")   return Method::Trace;
-    if(str == "CONNECT") return Method::Connect;
+    static const Method allMethods[] =
+    {
+      Method::Options,
+      Method::Get,
+      Method::Head,
+      Method::Post,
+      Method::Put,
+      Method::Delete,
+      Method::Trace,
+      Method::Connect
+    };
+
+    for(auto m : allMethods)
+      if(methodEnum2str(m) == str)
+        return m;
 
     throw std::runtime_error("Unrecognized method: " + std::string(str));
   }
@@ -57,6 +79,17 @@ namespace
     return {methodStr2enum(line.substr(0, endMethodPos)),
             line.substr(begUriPos, endUriPos - begUriPos)};
   }
+
+  int processResponseLine(std::vector<char> &buf, size_t from, size_t to)
+  {
+    auto line = std::string_view(&buf[from], to - from);
+
+    auto endHttpPos = line.find(' ');
+    auto begCodePos = endHttpPos + 1;
+    auto endCodePos = line.find(' ', begCodePos);
+
+    return str2num<int>(line.substr(begCodePos, endCodePos - begCodePos));
+  }
   
   std::pair<std::string_view, std::string_view> processHeaderLine(std::vector<char> &buf, size_t from, size_t to)
   {
@@ -79,26 +112,25 @@ namespace
   {
     return std::string_view(&newBuf[std::distance(oldBuf.data(), oldStrView.data())], oldStrView.size());
   }
+
+  std::vector<char> &operator+=(std::vector<char> &vec, std::string_view str)
+  {
+    vec.insert(vec.end(), str.begin(), str.end());
+    return vec;
+  }
 }
 
-Request::Request(const Request &r)
-{
-  *this = r;
-}
-
-Request &Request::operator=(const Request &r)
+void PayloadBase::copyFrom(const PayloadBase &r)
 {
   headBuf_ = r.headBuf_;
   bodyBuf_ = r.bodyBuf_;
-  method_ = r.method_;
-  uri_ = migrateStrView(r.uri_, r.headBuf_, headBuf_);
+  bodyStr_ = r.bodyStr_;
+  isBodyStr_ = r.isBodyStr_;
   for(auto [hName, hValue] : r.headers_)
     headers_.emplace_back(migrateStrView(hName, r.headBuf_, headBuf_), migrateStrView(hValue, r.headBuf_, headBuf_));
-
-  return *this;
 }
 
-std::optional<std::string_view> Request::findHeader(std::string_view name) const
+std::optional<std::string_view> PayloadBase::findHeader(std::string_view name) const
 {
   for(auto [hName, value] : headers_)
     if(hName == name)
@@ -107,7 +139,51 @@ std::optional<std::string_view> Request::findHeader(std::string_view name) const
   return {};
 }
 
-void Request::recieve(int fd)
+void PayloadBase::addHeader(std::string_view name, std::string_view value)
+{
+  headBuf_ += name;
+  headBuf_ += ": ";
+  headBuf_ += value;
+  headBuf_ += "\r\n";
+}
+
+void PayloadBase::setBody(std::vector<char> body)
+{
+  addHeader("content-length", std::to_string(body.size()));
+  bodyBuf_ = std::move(body);
+  bodyStr_.clear();
+  isBodyStr_ = false;
+}
+
+void PayloadBase::setBody(std::string body)
+{
+  addHeader("content-length", std::to_string(body.size()));
+  bodyBuf_.clear();
+  bodyStr_ = std::move(body);
+  isBodyStr_ = true;
+}
+
+void PayloadBase::send(int fd)
+{
+  if(isBodyStr_)
+    send(fd, bodyStr_.data(), bodyStr_.size());
+  else
+    send(fd, bodyBuf_.data(), bodyBuf_.size());
+}
+
+void PayloadBase::send(int fd, std::string_view body)
+{
+  send(fd, body.data(), body.size());
+}
+
+void PayloadBase::send(int fd, const void *bodyData, size_t bodySize)
+{
+  write(fd, headBuf_.data(), headBuf_.size());
+  write(fd, "\r\n", 2);
+  write(fd, bodyData, bodySize);
+}
+
+void PayloadBase::readHeadBuf(int fd)
 {
   static const std::string_view rnrn = "\r\n\r\n";
 
@@ -140,6 +216,44 @@ void Request::recieve(int fd)
             std::back_inserter(bodyBuf_));
 
   headBuf_.resize(endHeadersPos);
+}
+
+void PayloadBase::readBodyBuf(int fd)
+{
+  if(auto contentLength = findHeader("content-length"))
+  {
+    size_t pos, len;
+    pos = bodyBuf_.size();
+    len = str2num<size_t>(*contentLength);
+
+    bodyBuf_.resize(len);
+
+    while(pos < len)
+      pos += throwOnErr(read(fd, &bodyBuf_[pos], len - pos));
+  }
+}
+
+void Request::copyFrom(const Request &r)
+{
+  method_ = r.method_;
+  uri_ = migrateStrView(r.uri_, r.headBuf_, headBuf_);
+}
+
+void Request::setMethodUri(Method method, std::string_view uri)
+{
+  auto methodStr = methodEnum2str(method);
+
+  headBuf_ += methodStr;
+  headBuf_ += " ";
+  headBuf_ += uri;
+  headBuf_ += " HTTP/1.1\r\n";
+
+  uri_ = dumpHead().substr(methodStr.size() + 1, uri.size());
+}
+
+void Request::receive(int fd)
+{
+  readHeadBuf(fd);
 
   processHeadBuf(headBuf_,
     [&](size_t from, size_t to){
@@ -149,19 +263,7 @@ void Request::recieve(int fd)
       headers_.push_back(processHeaderLine(headBuf_, from, to));
     });
 
-  if(auto contentLength = findHeader("content-length"))
-  {
-    auto len = str2num<size_t>(*contentLength);
-
-    pos -= endHeadersPos;
-
-    bodyBuf_.resize(len);
-
-    while(pos < len)
-    {
-      pos += throwOnErr(read(fd, &bodyBuf_[pos], len - pos));
-    }
-  }
+  readBodyBuf(fd);
 }
 
 namespace
@@ -215,64 +317,28 @@ namespace
   }
 }
 
-Response::Response(int statusCode)
+void Response::setCode(int code)
 {
-  headStr_ += "HTTP/1.1 ";
-  headStr_ += std::to_string(statusCode);
-  headStr_ += " ";
-  headStr_ += statusCode2reasonPhrase(statusCode);
-  headStr_ += "\r\n";
+  code_ = code;
+
+  headBuf_ += "HTTP/1.1 ";
+  headBuf_ += std::to_string(code);
+  headBuf_ += " ";
+  headBuf_ += statusCode2reasonPhrase(code);
+  headBuf_ += "\r\n";
 }
 
-void Response::addHeader(std::string_view name, std::string_view value)
+void Response::receive(int fd)
 {
-  headStr_ += name;
-  headStr_ += ": ";
-  headStr_ += value;
-  headStr_ += "\r\n";
-}
+  readHeadBuf(fd);
 
-void Response::setBody(std::string body)
-{
-  addHeader("content-length", std::to_string(body.size()));
-  bodyStr_ = std::move(body);
-  bodyType_ = BodyType::Str;
-}
+  processHeadBuf(headBuf_,
+    [&](size_t from, size_t to){
+      code_ = processResponseLine(headBuf_, from, to);
+    },
+    [&](size_t from, size_t to){
+      headers_.push_back(processHeaderLine(headBuf_, from, to));
+    });
 
-void Response::setBody(std::vector<char> body)
-{
-  addHeader("content-length", std::to_string(body.size()));
-  bodyVec_ = std::move(body);
-  bodyType_ = BodyType::Vec;
-}
-
-void Response::emplaceBody(std::string_view body)
-{
-  setBody(std::string(body));
-}
-
-void Response::send(int fd)
-{
-  switch(bodyType_)
-  {
-    case BodyType::Str:
-      send(fd, bodyStr_.data(), bodyStr_.size());
-    break;
-
-    case BodyType::Vec:
-      send(fd, bodyVec_.data(), bodyVec_.size());
-    break;
-  }
-}
-
-void Response::send(int fd, std::string_view body)
-{
-  send(fd, body.data(), body.size());
-}
-
-void Response::send(int fd, const void *bodyData, size_t bodySize)
-{
-  write(fd, "\r\n", 2);
-  write(fd, headStr_.data(), headStr_.size());
-  write(fd, bodyData, bodySize);
+  readBodyBuf(fd);
 }

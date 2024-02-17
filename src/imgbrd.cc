@@ -152,14 +152,14 @@ namespace
   Http::Response makeRedirect(std::string_view uri)
   {
     return Http::Response(303)
-      .wAddHeader("location", uri);
+      .wHeader("location", uri);
   }
 
   Http::Response makeContent(int code, std::string content)
   {
     return Http::Response(code)
-      .wAddHeader("content-type", "text/html")
-      .wSetBody(std::move(content));
+      .wHeader("content-type", "text/html")
+      .wBody(std::move(content));
   }
 }
 
@@ -220,8 +220,8 @@ Http::Response ImgBrd::Impl::handleGetPost(const Http::Request &req, std::string
 
   if(auto content = getFileAs<std::string>("posts/" + filename))
     return Http::Response(200)
-      .wAddHeader("content-type", "text/html")
-      .wSetBody(
+      .wHeader("content-type", "text/html")
+      .wBody(
         makePage(
           hTag("p")
           << (hTag("h3") << hText(filename))
@@ -236,8 +236,8 @@ Http::Response ImgBrd::Impl::handleGetPic(const Http::Request &req, std::string_
 
   if(auto content = getFileAs<std::vector<char>>("pics/" + filename))
     return Http::Response(200)
-      .wAddHeader("content-type", "image/jpeg")
-      .wSetBody(std::move(*content));
+      .wHeader("content-type", "image/jpeg")
+      .wBody(std::move(*content));
   else
     return Http::Response(404);
 }
@@ -252,7 +252,7 @@ Http::Response ImgBrd::Impl::handlePostPost(const Http::Request &req, std::strin
   auto filename = std::to_string(numPosts);
   {
     auto file = std::ofstream("posts/" + filename);
-    file << req.bodyStr().substr(8);
+    file << req.dumpBody().substr(8);
   }
 
   auto lastPageUri = "/page/" + std::to_string(numPosts / c_pageSize);
