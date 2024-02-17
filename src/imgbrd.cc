@@ -210,6 +210,7 @@ Http::Response ImgBrd::Impl::handleGetPage(const Http::Request &req, std::string
       makePage(
         hMany()
         << makeHeading404()
+        << makePageLink(0, "На нулевую...")
       ).dump()
     );
 }
