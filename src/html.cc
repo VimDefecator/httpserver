@@ -5,7 +5,19 @@
 
 namespace
 {
-  void escapeStr(std::ostream &out, std::string_view str)
+  std::string &operator<<(std::string &out, std::string_view str)
+  {
+    out += str;
+    return out;
+  }
+
+  std::string &operator<<(std::string &out, char ch)
+  {
+    out += ch;
+    return out;
+  }
+
+  void escapeStr(std::string &out, std::string_view str)
   {
     for(auto ch : str)
     {
@@ -27,7 +39,7 @@ struct Html::Impl
   enum class Type { Many, Tag, Text, Raw };
   enum class TagType { Pair, SelfClose, NoClose };
 
-  void dump(std::ostream &out)
+  void dump(std::string &out)
   {
     if(type_ == Type::Many)
     {
@@ -161,8 +173,9 @@ void Html::noClose()
 
 std::string Html::dump()
 {
-  std::stringstream ss;
-  ss << "<!DOCTYPE html>\n";
-  impl_->dump(ss);
-  return ss.str();
+  std::string res;
+  res << "<!DOCTYPE html>\n";
+  impl_->dump(res);
+
+  return res;
 }
