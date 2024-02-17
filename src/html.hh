@@ -37,36 +37,36 @@ public:
 
   std::string dump();
 
-  CHAIN_METHOD(wRaw, setRawHtml);
-  CHAIN_METHOD(wText, setText);
-  CHAIN_METHOD(wName, setName);
-  CHAIN_METHOD(wAttr, addAttr);
-  CHAIN_METHOD(wChild, addChild);
-  CHAIN_METHOD(wApply, apply);
-  CHAIN_METHOD(wApplyIf, applyIf);
-  CHAIN_METHOD(wSelfClose, selfClose);
-  CHAIN_METHOD(wNoClose, noClose);
+  CHAIN_METHOD_AUTO(wRaw, setRawHtml);
+  CHAIN_METHOD_AUTO(wText, setText);
+  CHAIN_METHOD_AUTO(wName, setName);
+  CHAIN_METHOD_AUTO(wAttr, addAttr);
+  CHAIN_METHOD_AUTO(wChild, addChild);
+  CHAIN_METHOD_AUTO(wApply, apply);
+  CHAIN_METHOD_AUTO(wApplyIf, applyIf);
+  CHAIN_METHOD_AUTO(wSelfClose, selfClose);
+  CHAIN_METHOD_AUTO(wNoClose, noClose);
 
-  CHAIN_METHOD_FOR_TYPE(operator<<, addChild, Html);
+  CHAIN_METHOD_FOR_TYPE_AUTO(operator<<, addChild, Html);
 
-  CHAIN_METHOD_FOR_TYPE(operator<<, apply, std::function<void(Html&)>);
+  CHAIN_METHOD_FOR_TYPE_AUTO(operator<<, apply, std::function<void(Html&)>);
 
   struct ApplyIf { bool cond; const std::function<void(Html&)> &fn; };
   void applyIf(ApplyIf condFn) { applyIf(condFn.cond, condFn.fn); }
-  CHAIN_METHOD_FOR_TYPE(operator<<, applyIf, ApplyIf);
+  CHAIN_METHOD_FOR_TYPE_AUTO(operator<<, applyIf, ApplyIf);
 
   struct Attr { std::string name, value; };
   void addAttr(Attr attr) { addAttr(std::move(attr.name), std::move(attr.value)); }
-  CHAIN_METHOD_FOR_TYPE(operator<<, addAttr, Attr);
+  CHAIN_METHOD_FOR_TYPE_AUTO(operator<<, addAttr, Attr);
 
   struct RawHtml { std::string raw; };
   void setRawHtml(RawHtml rawHtml) { setRawHtml(std::move(rawHtml.raw)); }
-  CHAIN_METHOD_FOR_TYPE(operator<<, setRawHtml, RawHtml);
+  CHAIN_METHOD_FOR_TYPE_AUTO(operator<<, setRawHtml, RawHtml);
 
-  CHAIN_METHOD_FOR_TYPE_NO_ARG(operator<<, selfClose, SelfClose);
-  CHAIN_METHOD_FOR_TYPE_NO_ARG(operator<<, noClose, NoClose);
-  CHAIN_METHOD_FOR_TYPE_NO_ARG(operator<<, dump, Dump);
-  CHAIN_METHOD_FOR_TYPE_NO_ARG(operator<<, nop, Nop);
+  CHAIN_METHOD_FOR_TYPE_NO_ARG_AUTO(operator<<, selfClose, SelfClose);
+  CHAIN_METHOD_FOR_TYPE_NO_ARG_AUTO(operator<<, noClose, NoClose);
+  CHAIN_METHOD_FOR_TYPE_NO_ARG_AUTO(operator<<, dump, Dump);
+  CHAIN_METHOD_FOR_TYPE_NO_ARG_AUTO(operator<<, nop, Nop);
 
 private:
   struct Impl;

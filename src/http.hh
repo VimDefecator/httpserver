@@ -69,9 +69,9 @@ namespace Http
 
     void emplaceBody(std::string_view body);
 
-    CHAIN_METHOD(wAddHeader, addHeader);
-    CHAIN_METHOD(wSetBody, setBody);
-    CHAIN_METHOD(wEmplaceBody, emplaceBody);
+    CHAIN_METHOD_AUTO(wAddHeader, addHeader);
+    CHAIN_METHOD_AUTO(wSetBody, setBody);
+    CHAIN_METHOD_AUTO(wEmplaceBody, emplaceBody);
 
     void send(int fd);
     void send(int fd, std::string_view body);
