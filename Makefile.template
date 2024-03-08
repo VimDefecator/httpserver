@@ -2,7 +2,7 @@ define TARGET_template =
  SRCS_$(1) := $$(foreach name,$(2),src/$$(name).cc)
  OBJS_$(1) := $$(foreach name,$(2),build/$$(name).o)
  build/$(1): $$(OBJS_$(1))
-	$(CXX) $(LDFLAGS) -o build/$(1) $$(OBJS_$(1))
+	$(CXX) -o build/$(1) $$(OBJS_$(1)) $(LDFLAGS)
 endef
 
 all: $(TARGETS:%=build/%)
