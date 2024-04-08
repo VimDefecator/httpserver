@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <optional>
 #include "common/classutils.hh"
 
 namespace Http

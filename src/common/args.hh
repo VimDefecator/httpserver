@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <string>
+#include <optional>
 
 class Args
 {
